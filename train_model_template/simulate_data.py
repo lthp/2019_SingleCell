@@ -19,11 +19,12 @@ flags.DEFINE_integer('n_batches',2,'number of batches')
 flags.DEFINE_string('distribution', 'gamma', 'distribution to sample from {gamma, poisson}')
 flags.DEFINE_integer('seed', 234, 'set rng seed')
 flags.DEFINE_string('path_save', None,'path to save the generated data')
+flags.DEFINE_boolean('add_ri_patient',False,'whether to add a Random Intercept per patient')
 
 
 FLAGS = flags.FLAGS
 
-def simulate_data(n_samples, n_markers, n_cells_min, n_cells_max, n_batches, distribution, seed=234):
+def simulate_data(n_samples, n_markers, n_cells_min, n_cells_max, n_batches, distribution, seed, add_ri_patient):
     """
     Function to simulate toy dataset with differences between batches
     inputs:
@@ -55,6 +56,9 @@ def simulate_data(n_samples, n_markers, n_cells_min, n_cells_max, n_batches, dis
             else:
                 df = pd.DataFrame(np.random.poisson(1+b, size=n_markers*n_cells).reshape(n_cells, n_markers))
             df = df * trans_grad + trans_shift
+            if(add_ri_patient):
+                ri = np.random.normal(0,1,1)[0]
+                df = df+ri
             df.columns = marker_names
             df['metadata_sample'] = sample_name
             df['metadata_batch'] = batch_name
@@ -62,7 +66,11 @@ def simulate_data(n_samples, n_markers, n_cells_min, n_cells_max, n_batches, dis
         data_dict[batch_name] = pd.concat(data_dict[batch_name], axis=0)
 
     toy_data = pd.concat(data_dict, axis=0)   
-    toy_data.index = range(toy_data.shape[0])
+    idx = [x+'_'+y for x,y in zip([str(x) for x in toy_data.index.get_level_values(0)],
+                                [str(x) for x in toy_data.index.get_level_values(1)])]
+    toy_data.index = idx
+    toy_data.drop(columns=['metadata_sample', 'metadata_batch'])
+    # toy_data.index = range(toy_data.shape[0])
     return(toy_data)
 
 def main(argv):
@@ -70,7 +78,7 @@ def main(argv):
     
     toy_data = simulate_data(FLAGS.n_samples, FLAGS.n_markers, FLAGS.n_cells_min,
                              FLAGS.n_cells_max, FLAGS.n_batches, 
-                             FLAGS.distribution, FLAGS.seed)
+                             FLAGS.distribution, FLAGS.seed, FLAGS.add_ri_patient)
     table = pa.Table.from_pandas(toy_data)
     pq.write_table(table, FLAGS.path_save)
     

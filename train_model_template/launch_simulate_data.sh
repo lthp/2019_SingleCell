@@ -7,6 +7,7 @@ python simulate_data.py  \
         --n_cells_max=2000 \
 	--n_batches=2 \
         --distribution="gamma" \
-        --path_save='/Users/joannaf/Desktop/courses/DeepLearning/DL2019/project/data/simulated/toy_data3.parquet' \
-        --seed=234
+        --path_save='/Users/joannaf/Desktop/courses/DeepLearning/DL2019/project/data/simulated/toy_data_gamma_small.parquet' \
+        --seed=234 \
+	--add_ri_patient=False
 
