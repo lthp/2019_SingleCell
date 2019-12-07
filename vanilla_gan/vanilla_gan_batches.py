@@ -26,8 +26,8 @@ class GAN():
         self.generator = self.build_generator()
 
         # The generator takes x1 as input and generates gen_x1 (fake x2)
-        z = Input(shape=(self.data_size,))
-        gen_x1 = self.generator(z)
+        x1 = Input(shape=(self.data_size,))
+        gen_x1 = self.generator(x1)
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
