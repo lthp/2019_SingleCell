@@ -96,7 +96,8 @@ class GAN():
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         os.makedirs(os.path.join('figures', fname))
-        plot_model = {"epoch": [], "d_loss": [], "g_loss": []}
+        plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
+                      "g_reconstruction_error": [], "g_loss_total": []}
 
         x1_train = x1_train_df.values
         x2_train = x2_train_df.values
@@ -154,17 +155,23 @@ class GAN():
             #g_loss = np.mean(g_loss_list, axis=0)
             #d_loss = np.mean(d_loss_list, axis=0)
             # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
-                   (epoch, d_loss[0], 100*d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3]*100))
+            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
+                  (epoch, d_loss[0], 100*d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3]*100))
+
+            plot_model["epoch"].append(epoch)
+            plot_model["d_loss"].append(d_loss[0])
+            plot_model["g_loss"].append(g_loss[2])
+
+            plot_model["d_accuracy"].append(d_loss[1])
+            plot_model["g_accuracy"].append(g_loss[3])
+
+            plot_model["g_reconstruction_error"].append(g_loss[1])
+            plot_model["g_loss_total"].append(g_loss[0])
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots')
-                self.sample_x2(epoch, x1_train_df, x2_train_df, fname)
-            plot_model["epoch"].append(epoch)
-            plot_model["d_loss"].append(d_loss[0])
-            plot_model["g_loss"].append(g_loss[0])
-
+                self.sample_x2(epoch, x1_train_df, x2_train_df, plot_model, fname)
 
         return plot_model
 
@@ -175,8 +182,10 @@ class GAN():
         return gx_df
 
                 
-    def sample_x2(self, epoch, x1, x2, fname):
-        r, c = 5, 5
+    def sample_x2(self, epoch, x1, x2, metrics, fname):
+
+        plot_metrics(metrics, os.path.join('figures', fname, 'metrics'))
+
         gx1 = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
         plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
@@ -186,7 +195,6 @@ class GAN():
         if epoch == 0:
             plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                       save_as=os.path.join(fname, 'aegan_x1-x2_epoch'+str(epoch)))
-
 
 if __name__ == '__main__':
     import os
@@ -198,6 +206,6 @@ if __name__ == '__main__':
                                                            seed=42,
                                                            n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=100)
+    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
 
 
