@@ -92,6 +92,7 @@ class GAN():
     def train(self, x1, x2, epochs, batch_size=128, sample_interval=50):
         x1_train = x1.values
         x2_train = x2.values
+        plot_model = {"epoch":[],"d_loss":[],"g_loss":[]}
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))
@@ -134,10 +135,15 @@ class GAN():
 
             # Plot the progress
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[1], g_loss[0]))
+            plot_model["epoch"].append(epoch)
+            plot_model["d_loss"].append(d_loss[0])
+            plot_model["g_loss"].append(g_loss[1])
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 self.sample_x2(epoch, x1)
+        return plot_model
+
                 
     def transform_batch(self, x):
         gx = self.generator.predict(x)
