@@ -90,8 +90,8 @@ class GAN():
 
     def train(self, epochs, batch_size=128, sample_interval=50):
         plot_model = {"epoch":[],"d_loss":[],"g_loss":[]}
-        x1 = self.batch1.values
-        x2 = self.batch2.values
+        batch1 = self.batch1.values
+        batch2 = self.batch2.values
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))
@@ -104,9 +104,9 @@ class GAN():
             # ---------------------
 
             # Select a random batch of x1 and x2
-            idx = np.random.randint(0, x1.shape[0], batch_size)
-            x1 = x1[idx]
-            x2 = x2[idx]
+            idx = np.random.randint(0, batch1.shape[0], batch_size)
+            x1 = batch1[idx]
+            x2 = batch2[idx]
 
             # Generate a batch of new images
             gen_x1 = self.generator.predict(x1)
