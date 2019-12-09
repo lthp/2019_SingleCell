@@ -9,7 +9,7 @@ from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from helpers_vizualisation import plot_tsne
+from helpers_vizualisation import plot_tsne, plot_metrics
 from datetime import datetime
 
 class GAN():
@@ -92,10 +92,11 @@ class GAN():
         validity = model(x2)
         return Model(x2, validity, name='discriminator')
 
-    
+
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         os.makedirs(os.path.join('figures', fname))
+        plot_model = {"epoch": [], "d_loss": [], "g_loss": []}
 
         x1_train = x1_train_df.values
         x2_train = x2_train_df.values
@@ -160,6 +161,13 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots')
                 self.sample_x2(epoch, x1_train_df, x2_train_df, fname)
+            plot_model["epoch"].append(epoch)
+            plot_model["d_loss"].append(d_loss[0])
+            plot_model["g_loss"].append(g_loss[0])
+
+
+        return plot_model
+
                 
     def transform_batch(self, x):
         gx = self.generator.predict(x)
@@ -176,7 +184,8 @@ class GAN():
         plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                   save_as=os.path.join(fname, 'aegan_gx1-x2_epoch'+str(epoch)))
         if epoch == 0:
-            plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=os.path.join(fname, 'aegan_x1-x2_epoch'+str(epoch)))
+            plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
+                      save_as=os.path.join(fname, 'aegan_x1-x2_epoch'+str(epoch)))
 
 
 if __name__ == '__main__':
@@ -190,3 +199,5 @@ if __name__ == '__main__':
                                                            n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=100)
+
+
