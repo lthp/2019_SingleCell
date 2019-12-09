@@ -171,7 +171,7 @@ class GAN():
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots')
-                self.sample_x2(epoch, x1_train_df, x2_train_df, plot_model, fname)
+                self.plot_progress(epoch, x1_train_df, x2_train_df, plot_model, fname)
 
         return plot_model
 
@@ -182,7 +182,7 @@ class GAN():
         return gx_df
 
                 
-    def sample_x2(self, epoch, x1, x2, metrics, fname):
+    def plot_progress(self, epoch, x1, x2, metrics, fname):
 
         plot_metrics(metrics, os.path.join('figures', fname, 'metrics'))
 
