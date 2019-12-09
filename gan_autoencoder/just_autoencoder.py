@@ -9,7 +9,8 @@ from tensorflow.keras.optimizers import Adam
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
+from helpers_vizualisation import plot_tsne
+import os
 
 class AE():
     def __init__(self, n_markers=30):
@@ -27,10 +28,13 @@ class AE():
         model.add(Dense(30, input_dim=self.data_size))
         model.add(LeakyReLU(alpha=0.2))
         
-        model.add(Dense(20))
+        model.add(Dense(40))
         model.add(LeakyReLU(alpha=0.2))
         
-        model.add(Dense(20))
+        model.add(Dense(50))
+        model.add(LeakyReLU(alpha=0.2))
+        
+        model.add(Dense(40))
         model.add(LeakyReLU(alpha=0.2))
         
         model.add(Dense(30))
@@ -46,9 +50,9 @@ class AE():
         return Model(x1, x1_gen)
 
     
-    def train(self, x1_train, x1_test, epochs, batch_size=128, sample_interval=50):
-        x1_train = x1_train.values
-        x1_test = x1_test.values
+    def train(self, x1_train_df, x1_test_df, epochs, batch_size=128, sample_interval=50):
+        x1_train = x1_train_df.values
+        x1_test = x1_test_df.values
 
         steps_per_epoch = len(x1_train) // batch_size
         for epoch in range(epochs):
@@ -80,7 +84,7 @@ class AE():
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
-                self.sample_x2(epoch, x1)
+                self.sample_x2(epoch, x1_train_df)
                 
     def transform_batch(self, x):
         gx = self.generator.predict(x.values)
@@ -90,9 +94,10 @@ class AE():
                 
     def sample_x2(self, epoch, x1):
         r, c = 5, 5
-        gen_x2 = self.generator.predict(x1)
-        # can e.g. save some pca figures of the gen_x2
-
+        gx = self.generator.predict(x1)
+        gx = pd.DataFrame(data=gx, columns=x1.columns, index=x1.index + '_transformed')
+        plot_tsne(pd.concat([x1, gx]), do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as='ae_epoch'+str(epoch))
+        
 
 if __name__ == '__main__':
     path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class\code_ADAE_\chevrier_data_pooled.parquet'
