@@ -210,4 +210,4 @@ if __name__ == '__main__':
     #x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
     #                                                       seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=5)
+    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
