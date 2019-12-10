@@ -35,6 +35,9 @@ def load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'], s
         x2 = x2.iloc[cells_to_select, :]
     x1 = normalize(x1)
     x2 = normalize(x2)
+    n = np.min([len(x1), len(x2)])
+    x1 = x1[:n]
+    x2 = x2[:n]
     x1_train, x1_test = train_test_split(x1, test_size=0.2, random_state=42)
     x2_train, x2_test = train_test_split(x2, test_size=0.2, random_state=42)
     return x1_train, x1_test, x2_train, x2_test
