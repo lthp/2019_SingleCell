@@ -51,7 +51,8 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         do_pca: performs pca prior to t-sne, no downsampling there
         n_plots: Tries different perplexity values, 
         iter_ : fitting 
-        pca_components: PCs'''
+        pca_components: PCs
+    '''
     Labels = list(data.index)
     if do_pca: 
         pca = PCA(n_components=pca_components)
@@ -72,7 +73,7 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
             plt.show()
 
 
-def plot_metrics(metrics, fname):
+def plot_metrics(metrics, fname, autoencoder=False):
     #metric_names = [m for m in metrics.keys() if m != 'epoch']
     plt.figure()
     plt.plot(metrics['epoch'], metrics['d_loss'], label='d_loss')
@@ -83,29 +84,30 @@ def plot_metrics(metrics, fname):
     plt.savefig(fname + '_' + 'g_d_losses')
     plt.close()
 
-    plt.plot(metrics['epoch'], metrics['d_accuracy'], label='d_accuracy')
-    plt.plot(metrics['epoch'], metrics['g_accuracy'], label='g_accuracy')
-    plt.title('Generator vs Discriminator accuracy')
-    plt.legend()
-    plt.grid()
-    plt.savefig(fname + '_' + 'g_d_accuracy')
-    plt.close()
+    if autoencoder:
+        plt.plot(metrics['epoch'], metrics['d_accuracy'], label='d_accuracy')
+        plt.plot(metrics['epoch'], metrics['g_accuracy'], label='g_accuracy')
+        plt.title('Generator vs Discriminator accuracy')
+        plt.legend()
+        plt.grid()
+        plt.savefig(fname + '_' + 'g_d_accuracy')
+        plt.close()
 
-    plt.plot(metrics['epoch'], metrics['g_reconstruction_error'])
-    plt.title('Generator mean absolute error')
-    plt.grid()
-    plt.savefig(fname + '_' + 'g_reconstruction_error')
-    plt.close()
+        plt.plot(metrics['epoch'], metrics['g_reconstruction_error'])
+        plt.title('Generator mean absolute error')
+        plt.grid()
+        plt.savefig(fname + '_' + 'g_reconstruction_error')
+        plt.close()
 
-    plt.plot(metrics['epoch'], metrics['g_loss_total'])
-    plt.title('Generator total loss (mae+xentropy, scaled)')
-    plt.grid()
-    plt.savefig(fname + '_' + 'g_loss_total')
-    plt.close()
+        plt.plot(metrics['epoch'], metrics['g_loss_total'])
+        plt.title('Generator total loss (mae+xentropy, scaled)')
+        plt.grid()
+        plt.savefig(fname + '_' + 'g_loss_total')
+        plt.close()
 
 
 
-def plot_umap(data, random_state_ = 42):
+def plot_umap(data, random_state_ = 42, save_as=None):
     ''' 
     Function to generate Umap plot
     Inputs: 
@@ -126,6 +128,8 @@ def plot_umap(data, random_state_ = 42):
         plt.ylabel('Umap 2', fontsize = 12)
         plt.title('UMAP projection of the dataset with random state'.format(random_state_), fontsize=12)
     plt.legend(np.unique(df_embedding["ID"]))
-    plt.legend(loc='upper center', bbox_to_anchor=(0.5, 1.3),
-          ncol=3, fancybox=True, shadow=True)
-    plt.show()
+    if save_as is not None:
+        plt.savefig(os.path.join('figures', save_as))
+        plt.close()
+    else:
+        plt.show()
