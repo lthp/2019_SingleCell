@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 import umap
 reducer = umap.UMAP()
 import matplotlib.cm as cm
+import os
 
 
 def eval_knn_proportions(df, k=10):
@@ -42,7 +43,7 @@ def eval_knn_proportions(df, k=10):
     return(batch1_proportions)
 
 
-def plot_tsne(data, do_pca = True, n_plots = 2, iter_ = 500, pca_components = 20):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None):
     ''' 
     Function to generate t-sne plot 
     inputs: 
@@ -64,7 +65,45 @@ def plot_tsne(data, do_pca = True, n_plots = 2, iter_ = 500, pca_components = 20
         Xf['labels'] = Labels
         sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False)
         plt.title('Plot: t-SNE projection of the dataset perplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=15)
-        plt.show()
+        if save_as is not None:
+            plt.savefig(os.path.join('figures', save_as+'_p'+str(perplexity_)))
+            plt.close()
+        else:
+            plt.show()
+
+
+def plot_metrics(metrics, fname):
+    #metric_names = [m for m in metrics.keys() if m != 'epoch']
+    plt.figure()
+    plt.plot(metrics['epoch'], metrics['d_loss'], label='d_loss')
+    plt.plot(metrics['epoch'], metrics['g_loss'], label='g_loss')
+    plt.title('Generator vs Discriminator Cross-entropy')
+    plt.legend()
+    plt.grid()
+    plt.savefig(fname + '_' + 'g_d_losses')
+    plt.close()
+
+    plt.plot(metrics['epoch'], metrics['d_accuracy'], label='d_accuracy')
+    plt.plot(metrics['epoch'], metrics['g_accuracy'], label='g_accuracy')
+    plt.title('Generator vs Discriminator accuracy')
+    plt.legend()
+    plt.grid()
+    plt.savefig(fname + '_' + 'g_d_accuracy')
+    plt.close()
+
+    plt.plot(metrics['epoch'], metrics['g_reconstruction_error'])
+    plt.title('Generator mean absolute error')
+    plt.grid()
+    plt.savefig(fname + '_' + 'g_reconstruction_error')
+    plt.close()
+
+    plt.plot(metrics['epoch'], metrics['g_loss_total'])
+    plt.title('Generator total loss (mae+xentropy, scaled)')
+    plt.grid()
+    plt.savefig(fname + '_' + 'g_loss_total')
+    plt.close()
+
+
 
 def plot_umap(data, random_state_ = 42):
     ''' 
