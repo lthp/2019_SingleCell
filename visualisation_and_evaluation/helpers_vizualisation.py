@@ -43,7 +43,7 @@ def eval_knn_proportions(df, k=10):
     return(batch1_proportions)
 
 
-def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures'):
     ''' 
     Function to generate t-sne plot 
     inputs: 
@@ -64,10 +64,10 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         Xf = pd.DataFrame(X_tsne)
         Xf.columns = ["t-sne1","t-sne2"]
         Xf['labels'] = Labels
-        sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False)
+        sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1})
         plt.title('Plot: t-SNE projection of the dataset perplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=15)
         if save_as is not None:
-            plt.savefig(os.path.join('figures', save_as+'_p'+str(perplexity_)))
+            plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)))
             plt.close()
         else:
             plt.show()
@@ -106,8 +106,7 @@ def plot_metrics(metrics, fname, autoencoder=False):
         plt.close()
 
 
-
-def plot_umap(data, random_state_ = 42, save_as=None):
+def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
     ''' 
     Function to generate Umap plot
     Inputs: 
@@ -129,7 +128,7 @@ def plot_umap(data, random_state_ = 42, save_as=None):
         plt.title('UMAP projection of the dataset with random state'.format(random_state_), fontsize=12)
     plt.legend(np.unique(df_embedding["ID"]))
     if save_as is not None:
-        plt.savefig(os.path.join('figures', save_as))
+        plt.savefig(os.path.join(folder_name, save_as))
         plt.close()
     else:
         plt.show()
