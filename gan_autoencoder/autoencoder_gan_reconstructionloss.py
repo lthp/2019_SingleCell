@@ -12,6 +12,7 @@ import pandas as pd
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
 
+
 class GAN():
     def __init__(self, n_markers=30):
         self.data_size = n_markers
@@ -46,7 +47,7 @@ class GAN():
         metrics = {'discriminator': 'accuracy'}
         self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics)
 
-        
+
     def build_generator(self):
         model = Sequential()
         model.add(Dense(30, input_dim=self.data_size))
@@ -73,7 +74,7 @@ class GAN():
 
         return Model(x1, x1_gen, name='generator')
 
-    
+
     def build_discriminator(self):
         model = Sequential()
         model.add(Dense(512, input_shape=(self.data_size,)))
@@ -176,13 +177,13 @@ class GAN():
 
         return plot_model
 
-                
+
     def transform_batch(self, x):
         gx = self.generator.predict(x)
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
-                
+
     def plot_progress(self, epoch, x1, x2, metrics, fname):
         plot_metrics(metrics, os.path.join('figures', fname, 'metrics'), autoencoder=True)
         if epoch == 0:
@@ -202,7 +203,8 @@ class GAN():
 if __name__ == '__main__':
     import os
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
-    path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
+    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
+    path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
     x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
 
     #path = os.getcwd()
