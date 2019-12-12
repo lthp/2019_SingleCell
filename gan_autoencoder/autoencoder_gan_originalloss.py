@@ -40,9 +40,7 @@ class GAN():
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
         self.combined = Model(inputs=x1, outputs=[gen_x1, validity])
-        losses = ['mean_absolute_error', 'binary_crossentropy']
-        loss_weights = [1, 0.1]
-        self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights)
+        self.combined.compile(loss='binary_crossentropy', optimizer=optimizer, )
 
 
     def build_generator(self):
