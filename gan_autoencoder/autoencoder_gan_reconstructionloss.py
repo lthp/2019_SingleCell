@@ -97,6 +97,7 @@ class GAN():
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         os.makedirs(os.path.join('figures', fname))
+        os.makedirs(os.path.join('output_dataframes', fname))
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -177,12 +178,10 @@ class GAN():
 
         return plot_model
 
-
     def transform_batch(self, x):
         gx = self.generator.predict(x)
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
-
 
     def plot_progress(self, epoch, x1, x2, metrics, fname):
         plot_metrics(metrics, os.path.join('figures', fname, 'metrics'), autoencoder=True)
@@ -193,6 +192,8 @@ class GAN():
 
         gx1 = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
+        # export output dataframes
+        gx1.to_csv(os.path.join('output_dataframes', fname, 'gx1_epoch' + str(epoch) + '.csv'))
         plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                   save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch'+str(epoch)))
         plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
@@ -200,16 +201,17 @@ class GAN():
         plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch'+str(epoch)))
         plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch'+str(epoch)))
 
+
 if __name__ == '__main__':
     import os
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
     # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
-    path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
+    # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
+    # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
 
-    #path = os.getcwd()
-    #path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
-    #x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
-    #                                                       seed=42, n_cells_to_select=0)
+    path = r'C:\Users\Public\PycharmProjects\deep\2019_DL_Class\loading_and_preprocessing'
+    path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
+                                                           seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
