@@ -39,9 +39,9 @@ class GAN():
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(inputs=x1, outputs=[gen_x1, validity])
+        self.combined = Model(inputs=x1, outputs=validity)
+        # g_loss = self.combined.train_on_batch(x1, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer, )
-
 
     def build_generator(self):
         model = Sequential()
@@ -135,10 +135,10 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch(x1, [x1, valid])
+                g_loss = self.combined.train_on_batch(x1, valid)
 
             # Plot the progress
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[1], g_loss[0]))
+            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
