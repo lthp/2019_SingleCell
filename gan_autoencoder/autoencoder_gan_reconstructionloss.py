@@ -12,7 +12,10 @@ import pandas as pd
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
 
-
+'''
+This model is an optimized gan where the generator is an autoencoder with reconstruction loss, but the structure of 
+the generator autoencoder is diamond shaped (not with a bottleneck layer). This model seems to be performing good.
+'''
 class GAN():
     def __init__(self, n_markers=30):
         self.data_size = n_markers

@@ -62,7 +62,7 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         tsne = TSNE(n_components=2,verbose=1,perplexity=perplexity_,n_iter=iter_)
         X_tsne = tsne.fit_transform(data)
         Xf = pd.DataFrame(X_tsne)
-        Xf.columns = ["t-sne1","t-sne2"]
+        Xf.columns = ["t-sne1", "t-sne2"]
         Xf['labels'] = Labels
         sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1})
         plt.title('Plot: t-SNE projection of the dataset perplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=15)
@@ -122,7 +122,7 @@ def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
     df_embedding['ID'] = data.index
     for i, row in enumerate(df_embedding.groupby("ID")):
         tbl = row[1]
-        plt.scatter(tbl["comp 1"], tbl["comp 2"], c=colors[i], label = row[0], s=15)
+        plt.scatter(tbl["comp 1"], tbl["comp 2"], c=colors[i], label = row[0], s=15, alpha=0.1)
         plt.xlabel('Umap 1', fontsize = 12)
         plt.ylabel('Umap 2', fontsize = 12)
         plt.title('UMAP projection of the dataset with random state'.format(random_state_), fontsize=12)

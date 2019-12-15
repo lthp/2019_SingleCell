@@ -12,6 +12,10 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
+'''
+This model has the exact same structure and optimizations as "autoencoder_gan_reconstructionloss", 
+but the only difference is the loss - just keep the vanilla loss, not have reconstruction loss.
+'''
 
 class GAN():
     def __init__(self, n_markers=30):
@@ -91,7 +95,8 @@ class GAN():
 
     def train(self, x1_df, x2_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        os.makedirs(os.path.join('figure_originalloss', fname))
+        os.makedirs(os.path.join('figures', fname))
+        os.makedirs(os.path.join('output_dataframes', fname))
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": []}
 
@@ -151,23 +156,22 @@ class GAN():
         return gx_df
 
     def plot_progress(self, epoch, x1, x2, metrics, fname):
-        plot_metrics(metrics, os.path.join('figure_originalloss', fname, 'metrics'))
+        plot_metrics(metrics, os.path.join('figures', fname, 'metrics'))
         if epoch == 0:
             plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                      save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch'+str(epoch)), folder_name='figure_originalloss')
-            plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch'+str(epoch)),
-                      folder_name='figure_originalloss')
+                      save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch'+str(epoch)))
+            plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch'+str(epoch)))
 
         gx1 = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
+        # export output dataframes
+        gx1.to_csv(os.path.join('output_dataframes', fname, 'gx1_epoch' + str(epoch) + '.csv'))
         plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch'+str(epoch)), folder_name='figure_originalloss')
+                  save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch'+str(epoch)))
         plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch'+str(epoch)), folder_name='figure_originalloss')
-        plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch'+str(epoch)),
-                  folder_name='figure_originalloss')
-        plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch'+str(epoch)),
-                  folder_name='figure_originalloss')
+                  save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch'+str(epoch)))
+        plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch'+str(epoch)))
+        plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch'+str(epoch)))
 
 
 if __name__ == '__main__':
@@ -183,3 +187,5 @@ if __name__ == '__main__':
     #                                                       seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+
+
