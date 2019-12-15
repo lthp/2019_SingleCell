@@ -24,10 +24,10 @@ def loader(filename, take_log, oversample, standardization, scaling):
     dataset = {}
     df = pd.read_csv(filename, header=None)
     dat = df[df.columns[1:]].values
-    dataset['sample_labels'] = dat[0, :].astype(int)
-    dataset['cluster_labels'] = dat[2, :].astype(int)
+    sample_labels = dat[0, :].astype(int)
+    cell_labels  =  dat[1, :].astype(int)
+    cluster_labels = dat[2, :].astype(int)
     gene_sym = df[df.columns[0]].tolist()[3:]
-    cluster_labels = dat[1, :].astype(int)
     dataset['gene_sym'] = gene_sym
     ### Gene expression
     gene_exp = dat[3:, :]
@@ -39,11 +39,16 @@ def loader(filename, take_log, oversample, standardization, scaling):
         minmax_scale(gene_exp, feature_range=(0, 1), axis=1, copy=False)
     if oversample:
         gene_exp = gene_exp.transpose()
-        gene_exp, cluster_labels = RandomOverSampler(random_state=imblearn_seed).fit_sample(gene_exp, cluster_labels)
+        gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True ).fit_sample(gene_exp, cluster_labels )
+        cell_labels = cell_labels[sampling_idx]
+        sample_labels = sample_labels[sampling_idx]
         gene_exp = gene_exp.transpose()
 
+    dataset['sample_labels'] = sample_labels
+    dataset['cell_labels'] = cell_labels
     dataset['gene_exp'] = gene_exp
-    dataset['cell_labels'] = cluster_labels
+    dataset['cluster_labels'] = cluster_labels
+
 
     return dataset
 
@@ -54,12 +59,28 @@ def  train_test(dataset, split = 0.80):
       Returns:
           x1_train, x1_test, x2_train, x2_test : dictionaries which are dict with keys 'gene_exp', 'gene_sym', 'sample_labels', 'cell_labels', 'cluster_labels'
     '''
+    x1_train = {}
+    x1_test ={}
+    x2_train = {}
+    x2_test = {}
     x1 = dataset[0]
     x2 = dataset[1]
-    cluster_loader_dict[1]['gene_exp'].shape
-    x1_train =
-
-
+    n1 = x1['gene_exp'].shape[1]
+    n2 = x2['gene_exp'].shape[1]
+    idx1 = np.random.permutation(n1)
+    idx2 = np.random.permutation(n2)
+    c1 = int(np.ceil(split * n1 ))
+    c2 = int(np.ceil(split * n2 ))
+    for name in ['sample_labels', 'cell_labels', 'cluster_labels']:
+        x1_train[name] = x1[name][idx1[:c1]]
+        x1_test[name] = x1[name][idx1[c1:]]
+        x2_train[name] = x2[name][idx2[:c2]]
+        x2_test[name] = x2[name][idx2[c2:]]
+    name = 'gene_exp'
+    x1_train[name] = x1[name][:, idx1[:c1]]
+    x1_test[name] = x1[name][:, idx1[c1:]]
+    x2_train[name] = x2[name][:, idx2[:c2]]
+    x2_test[name] = x2[name][:, idx2[c2:]]
     return x1_train, x1_test, x2_train, x2_test
 
 def read_cluster_similarity(filename, thr):
@@ -217,7 +238,7 @@ def pre_processing(dataset_file_list, pre_process_paras):
         dataset_list.append(dataset)
     dataset_list = intersect_dataset(dataset_list)  # retain intersection of gene symbols
     x1_train, x1_test, x2_train, x2_test = train_test(dataset_list, split)
-    return dataset_list
+    return x1_train, x1_test, x2_train, x2_test
 
 if __name__ == '__main__':
     dataset_file_list = ['data/muraro_seurat.csv', 'data/baron_human_seurat.csv']

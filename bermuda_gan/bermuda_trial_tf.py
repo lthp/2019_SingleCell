@@ -126,6 +126,7 @@ class GAN():
 
                 # Generate a batch of new images
                 gen_x1 = self.generator.predict(x1)
+                gen_x2 = self.generator.predict(x2) ###
 
                 # Train the discriminator
                 if d_loss[1] > 0.8:  # Gives the generator a break if the discriminator learns too fast
@@ -218,16 +219,15 @@ if __name__ == '__main__':
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
-    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True}
+    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True, 'split':0.80}
     path_data1_clusters = '../bermuda_original_code/pancreas/baron_seurat.csv'
     path_data2_clusters = '../bermuda_original_code/pancreas/muraro_seurat.csv'
     cluster_similarity_file =  '../bermuda_original_code/pancreas/pancreas_metaneighbor.csv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
-    x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr)
+    x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
 
 
-    x1_train, x1_test, x2_train, x2_test = alternative_loader(path, n=1000)
     gan = GAN(x1_train.shape[1])
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
