@@ -89,7 +89,8 @@ class GAN():
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        os.makedirs(os.path.join('figures', fname))
+        os.makedirs(os.path.join('figures_bottleneck', fname))
+        os.makedirs(os.path.join('output_dataframes_bottleneck', fname))
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -176,20 +177,24 @@ class GAN():
         return gx_df
 
     def plot_progress(self, epoch, x1, x2, metrics, fname):
-        plot_metrics(metrics, os.path.join('figures', fname, 'metrics'), autoencoder=True)
+        folder = 'figures_bottleneck'
+        plot_metrics(metrics, os.path.join(folder, fname, 'metrics'), autoencoder=True)
         if epoch == 0:
             plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                      save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch' + str(epoch)))
-            plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)))
+                      save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch' + str(epoch)), folder_name=folder)
+            plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
+                      folder_name=folder)
 
         gx1 = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
+        # export output dataframes
+        gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))
         plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch' + str(epoch)))
+                  save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch' + str(epoch)), folder_name=folder)
         plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch' + str(epoch)))
-        plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch' + str(epoch)))
-        plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch' + str(epoch)))
+                  save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch' + str(epoch)), folder_name=folder)
+        plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch' + str(epoch)), folder_name=folder)
+        plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch' + str(epoch)), folder_name=folder)
 
 
 if __name__ == '__main__':

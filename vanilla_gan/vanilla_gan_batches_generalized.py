@@ -1,3 +1,13 @@
+from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation
+from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.optimizers import Adam
+import numpy as np
+
+'''
+This model is the first working (generalized) version of vanilla gan for batch effect correlations,
+please use the gan_batches_optimized, for the most optimized version.
+'''
 class GAN():
     ''' batch1 and batch2 are pandas dataframes with batch 1 and batch 2 respectively and no metadata or index'''
     def __init__(self, batch1, batch2):
@@ -30,7 +40,7 @@ class GAN():
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(x1, validity) # gen_x1 is z
+        self.combined = Model(x1, validity)  # gen_x1 is z
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def build_generator(self):
