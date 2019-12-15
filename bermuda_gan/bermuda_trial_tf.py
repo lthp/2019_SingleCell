@@ -6,6 +6,7 @@ from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, Lea
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -14,7 +15,7 @@ sys.path.append("..")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity
-
+from AE_bermuda import Generator
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
@@ -56,22 +57,12 @@ class GAN():
         self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics)
 
     def build_generator(self):
-        model = Sequential()
-        model.add(Dense(30, input_dim=self.data_size))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(15))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(20))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(self.data_size, activation='tanh'))
-        model.summary()
+        model = Generator(20, self.data_size )
+        #model.summary()
 
-        x1 = Input(shape=(self.data_size,))
-        x1_gen = model(x1)
-        return Model(x1, x1_gen, name='generator')
+        #x = Input(shape=(self.data_size,))
+        #x_gen = model(x)
+        return model #Model(x, x_gen, name='generator')
 
     def build_discriminator(self):
         model = Sequential()
@@ -103,7 +94,7 @@ class GAN():
         x2_train = x2_train_df['gene_exp'].transpose()
 
         # Adversarial ground truths
-        valid = np.ones((batch_size, 1))  # assume normalisation between zero and 1
+        valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
         fake = np.zeros((batch_size, 1))
 
         valid_full = np.ones((len(x1_train), 1))
@@ -119,7 +110,7 @@ class GAN():
                 #  Train Discriminator
                 # ---------------------
 
-                # Select a random batch of x1 and x2
+                # Select a random batch of x1 and x2 #TODO: Implement a stratified sampling between the batches
                 idx1 = np.random.randint(0, x1_train.shape[0], batch_size)
                 idx2 = np.random.randint(0, x2_train.shape[0], batch_size)
                 x1 = x1_train[idx1]
@@ -128,6 +119,9 @@ class GAN():
                 # Generate a batch of new images
                 gen_x1 = self.generator.predict(x1)
                 gen_x2 = self.generator.predict(x2) ###
+                latent1 = self.generator.latent_space(x1)
+                latent2 = self.generator.latent_space(x2)
+
 
                 # Train the discriminator
                 if d_loss[1] > 0.8:  # Gives the generator a break if the discriminator learns too fast
@@ -145,7 +139,7 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch(x1, [x1, valid])
+                g_loss = self.combined.train_on_batch(x1, [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
 
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
