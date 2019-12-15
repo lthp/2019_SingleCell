@@ -71,16 +71,23 @@ def  train_test(dataset, split = 0.80):
     idx2 = np.random.permutation(n2)
     c1 = int(np.ceil(split * n1 ))
     c2 = int(np.ceil(split * n2 ))
-    for name in ['sample_labels', 'cell_labels', 'cluster_labels']:
-        x1_train[name] = x1[name][idx1[:c1]]
-        x1_test[name] = x1[name][idx1[c1:]]
-        x2_train[name] = x2[name][idx2[:c2]]
-        x2_test[name] = x2[name][idx2[c2:]]
-    name = 'gene_exp'
-    x1_train[name] = x1[name][:, idx1[:c1]]
-    x1_test[name] = x1[name][:, idx1[c1:]]
-    x2_train[name] = x2[name][:, idx2[:c2]]
-    x2_test[name] = x2[name][:, idx2[c2:]]
+    for name in ['sample_labels', 'cell_labels', 'cluster_labels', 'gene_exp', 'gene_sym']:
+        if name == 'gene_exp':
+            x1_train[name] = x1[name][:, idx1[:c1]]
+            x1_test[name] = x1[name][:, idx1[c1:]]
+            x2_train[name] = x2[name][:, idx2[:c2]]
+            x2_test[name] = x2[name][:, idx2[c2:]]
+        elif name == 'gene_sym':
+            x1_train[name] = x1[name]
+            x1_test[name] = x1[name]
+            x2_train[name] = x2[name]
+            x2_test[name] = x2[name]
+        else:
+            x1_train[name] = x1[name][idx1[:c1]]
+            x1_test[name] = x1[name][idx1[c1:]]
+            x2_train[name] = x2[name][idx2[:c2]]
+            x2_test[name] = x2[name][idx2[c2:]]
+
     return x1_train, x1_test, x2_train, x2_test
 
 def read_cluster_similarity(filename, thr):

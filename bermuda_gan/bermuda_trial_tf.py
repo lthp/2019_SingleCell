@@ -99,18 +99,18 @@ class GAN():
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
 
-        x1_train = x1_train_df.values
-        x2_train = x2_train_df.values
+        x1_train = x1_train_df['gene_exp'].transpose()
+        x2_train = x2_train_df['gene_exp'].transpose()
 
         # Adversarial ground truths
-        valid = np.ones((batch_size, 1))
+        valid = np.ones((batch_size, 1))  # assume normalisation between zero and 1
         fake = np.zeros((batch_size, 1))
 
         valid_full = np.ones((len(x1_train), 1))
         fake_full = np.zeros((len(x1_train), 1))
         d_loss = [0, 0]
 
-        steps_per_epoch = len(x1_train) // batch_size
+        steps_per_epoch = max(len(x1_train), len(x2_train)) // batch_size
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
@@ -120,9 +120,10 @@ class GAN():
                 # ---------------------
 
                 # Select a random batch of x1 and x2
-                idx = np.random.randint(0, x1_train.shape[0], batch_size)
-                x1 = x1_train[idx]
-                x2 = x2_train[idx]
+                idx1 = np.random.randint(0, x1_train.shape[0], batch_size)
+                idx2 = np.random.randint(0, x2_train.shape[0], batch_size)
+                x1 = x1_train[idx1]
+                x2 = x2_train[idx2]
 
                 # Generate a batch of new images
                 gen_x1 = self.generator.predict(x1)
@@ -229,5 +230,5 @@ if __name__ == '__main__':
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
 
 
-    gan = GAN(x1_train.shape[1])
+    gan = GAN(len(x1_train['gene_sym'])) # n_markers
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
