@@ -67,7 +67,7 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1})
         plt.title('Plot: t-SNE projection of the dataset perplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=15)
         if save_as is not None:
-            plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)))
+            plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)), bbox='tight')
             plt.close()
         else:
             plt.show()
