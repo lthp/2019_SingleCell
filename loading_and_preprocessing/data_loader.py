@@ -3,6 +3,7 @@ import pandas as pd
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 
+
 def normalize(x):
     data = x.values
     data = 2 * (data - np.nanmin(data, axis=0)) / (np.nanmax(data, axis=0) - np.nanmin(data, axis=0)) - 1
@@ -45,14 +46,14 @@ def load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'], s
     return x1_train, x1_test, x2_train, x2_test
 
 
-def load_data_cytof(path, patient_id='rcc7', n=None):
+def load_data_cytof(path, patient_id='rcc7', n=None, upsample=True):
     full = pd.read_parquet(path, engine='pyarrow')
     select_cols = [col for col in full.columns if "metadata" not in col]  # not include metadata
     select_cols.append('metadata_panel')
     full = full.loc[:, select_cols]
     panels = full.metadata_panel.unique()
     full_panel1 = full.loc[full['metadata_panel'] == panels[0]]
-    #full_panel2 = full.loc[full['metadata_panel'] == panels[1]]
+    # full_panel2 = full.loc[full['metadata_panel'] == panels[1]]
 
     # start working with batches and patients in panel1 only
     full_panel1 = full_panel1.dropna(how='all', axis='columns')
@@ -65,10 +66,16 @@ def load_data_cytof(path, patient_id='rcc7', n=None):
     full_patient_batch1 = full_patient.loc[full_patient['batch'] == batches[0]]  # split into the 2 batches
     full_patient_batch2 = full_patient.loc[full_patient['batch'] == batches[1]]  # for this patient
 
+    if upsample:
+        if len(full_patient_batch1) < len(full_patient_batch2):
+            full_patient_batch1 = full_patient_batch1.sample(n=len(full_patient_batch2), replace=True)
+        elif len(full_patient_batch2) < len(full_patient_batch1):
+            full_patient_batch2 = full_patient_batch2.sample(n=len(full_patient_batch1), replace=True)
+
     if n is not None:
         full_patient_batch1 = shuffle(full_patient_batch1)
         full_patient_batch2 = shuffle(full_patient_batch2)
-        full_patient_batch1 = full_patient_batch1.iloc[:n, :]  # batch 1 has otherwise much more number of cells
+        full_patient_batch1 = full_patient_batch1.iloc[:n, :]
         full_patient_batch2 = full_patient_batch2.iloc[:n, :]
 
     # y = full_patient_batch1["batch"]  # the label is batch1 (the reference batch)
