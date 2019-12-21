@@ -225,4 +225,4 @@ if __name__ == '__main__':
 
 
     gan = GAN(len(x1_train['gene_sym'])) # n_markers
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan.train(x1_train[0:3996], x2_train, epochs=3000, batch_size=64, sample_interval=50)
