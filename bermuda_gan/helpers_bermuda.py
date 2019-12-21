@@ -6,7 +6,7 @@ from imblearn.over_sampling import RandomOverSampler
 imblearn_seed = 0
 np.random.seed(12345)
 
-def loader(filename, take_log, oversample, standardization, scaling):
+def loader(dataset_file_list, take_log, oversample, standardization, scaling):
     """ Read TPM data of a dataset saved in csv format
     Format of the csv:
     first row: sample labels
@@ -21,36 +21,56 @@ def loader(filename, take_log, oversample, standardization, scaling):
     Returns:
         dataset: a dict with keys 'gene_exp', 'gene_sym', 'sample_labels', 'cell_labels', 'cluster_labels'
     """
-    dataset = {}
-    df = pd.read_csv(filename, header=None)
-    dat = df[df.columns[1:]].values
-    sample_labels = dat[0, :].astype(int)
-    cell_labels  =  dat[1, :].astype(int)
-    cluster_labels = dat[2, :].astype(int)
-    gene_sym = df[df.columns[0]].tolist()[3:]
-    dataset['gene_sym'] = gene_sym
-    ### Gene expression
-    gene_exp = dat[3:, :]
-    if take_log:
-        gene_exp = np.log2(gene_exp + 1)
-    if standardization:
-        scale(gene_exp, axis=1, with_mean=True, with_std=True, copy=False)
-    if scaling:  # scale to [0,1]
-        minmax_scale(gene_exp, feature_range=(0, 1), axis=1, copy=False)
-    if oversample:
-        gene_exp = gene_exp.transpose()
-        gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True ).fit_sample(gene_exp, cluster_labels )
-        cell_labels = cell_labels[sampling_idx]
-        sample_labels = sample_labels[sampling_idx]
-        gene_exp = gene_exp.transpose()
+    all_classes = []
+    classes_per_dataset = []
+    for filename in dataset_file_list:
+        df = pd.read_csv(filename, header=None, nrows = 3)
+        dat = df[df.columns[1:]].values
+        cluster_labels = dat[2, :].astype(int)
+        classes_per_dataset.append(len(np.unique(cluster_labels)))
+        all_classes.append(cluster_labels)
+    major_class = max(np.unique(all_classes, return_counts = True)[1])
+    resampling_size = np.cumproduct(classes_per_dataset)[-1]* major_class / \
+                      np.mean(classes_per_dataset)**len(classes_per_dataset)
 
-    dataset['sample_labels'] = sample_labels
-    dataset['cell_labels'] = cell_labels
-    dataset['gene_exp'] = gene_exp
-    dataset['cluster_labels'] = cluster_labels
+    target_sizes = {}
+    for class_ in np.unique(all_classes):
+        target_sizes[class_] = resampling_size
+
+    dataset_list = []
+    for filename in dataset_file_list:
+        dataset = {}
+        df = pd.read_csv(filename, header=None)
+        dat = df[df.columns[1:]].values
+        sample_labels = dat[0, :].astype(int)
+        cell_labels  =  dat[1, :].astype(int)
+        cluster_labels = dat[2, :].astype(int)
+        gene_sym = df[df.columns[0]].tolist()[3:]
+        dataset['gene_sym'] = gene_sym
+        ### Gene expression
+        gene_exp = dat[3:, :]
+        if take_log:
+            gene_exp = np.log2(gene_exp + 1)
+        if standardization:
+            scale(gene_exp, axis=1, with_mean=True, with_std=True, copy=False)
+        if scaling:  # scale to [0,1]
+            minmax_scale(gene_exp, feature_range=(0, 1), axis=1, copy=False)
+        if oversample:
+            gene_exp = gene_exp.transpose()
+            gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True, sampling_strategy = resampling_size ).fit_sample(gene_exp, cluster_labels )
+            cell_labels = cell_labels[sampling_idx]
+            sample_labels = sample_labels[sampling_idx]
+            gene_exp = gene_exp.transpose()
+
+        dataset['sample_labels'] = sample_labels #TODO remove
+        dataset['cell_labels'] = cell_labels
+        dataset['gene_exp'] = gene_exp
+        dataset['cluster_labels'] = cluster_labels
+
+        dataset_list.append(dataset)
+    return dataset_list
 
 
-    return dataset
 
 def  train_test(dataset, split = 0.80):
     ''' splits the dataset between train and test set. ASSUMES ONLY TWO BATCHES
@@ -239,10 +259,7 @@ def pre_processing(dataset_file_list, pre_process_paras):
     oversample = pre_process_paras['oversample']
     split = pre_process_paras['split']
 
-    dataset_list = []
-    for data_file in dataset_file_list:
-        dataset =  loader(data_file, take_log, oversample, standardization, scaling)
-        dataset_list.append(dataset)
+    dataset_list =  loader(dataset_file_list, take_log, oversample, standardization, scaling)
     dataset_list = intersect_dataset(dataset_list)  # retain intersection of gene symbols
     x1_train, x1_test, x2_train, x2_test = train_test(dataset_list, split)
     return x1_train, x1_test, x2_train, x2_test
