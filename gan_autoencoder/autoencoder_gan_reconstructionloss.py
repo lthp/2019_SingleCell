@@ -6,11 +6,13 @@ from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, Lea
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
+import csv
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
+from visualisation_and_evaluation.helpers_eval import evaluate_scores, separate_metadata, prep_data_for_eval
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, but the structure of 
@@ -96,11 +98,11 @@ class GAN():
         validity = model(x2)
         return Model(x2, validity, name='discriminator')
 
-
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         os.makedirs(os.path.join('figures', fname))
-        os.makedirs(os.path.join('output_dataframes', fname))
+        os.makedirs(os.path.join('output', fname))
+        os.makedirs(os.path.join('models', fname))
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -176,9 +178,11 @@ class GAN():
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
-                print('generating plots')
-                self.plot_progress(epoch, x1_train_df, x2_train_df, plot_model, fname)
-
+                print('generating plots and saving outputs')
+                gx1 = self.generator.predict(x1_train_df)
+                self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
+                # self.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname)
+                self.save_info(epoch, x1_train_df, x2_train_df, gx1, fname)
         return plot_model
 
     def transform_batch(self, x):
@@ -186,23 +190,45 @@ class GAN():
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
-    def plot_progress(self, epoch, x1, x2, metrics, fname):
+    def plot_progress(self, epoch, x1, x2, gx1, metrics, fname):
         plot_metrics(metrics, os.path.join('figures', fname, 'metrics'), autoencoder=True)
         if epoch == 0:
             plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                       save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch'+str(epoch)))
             plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch'+str(epoch)))
 
-        gx1 = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
-        # export output dataframes
-        gx1.to_csv(os.path.join('output_dataframes', fname, 'gx1_epoch' + str(epoch) + '.csv'))
         plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                   save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch'+str(epoch)))
         plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
                   save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch'+str(epoch)))
         plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch'+str(epoch)))
         plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch'+str(epoch)))
+
+    def save_info(self, epoch, x1, x2, gx1, fname):
+        if epoch == 0:
+            x1.to_csv(os.path.join('output', fname, 'x1_epoch' + str(epoch) + '.csv'),
+                      index_label=False)
+            x2.to_csv(os.path.join('output', fname, 'x2_epoch' + str(epoch) + '.csv'),
+                      index_label=False)
+
+        gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
+        df_eval = pd.concat([gx1, x2])
+        df, metadf = separate_metadata(df_eval)
+        umap_codes, data, cell_type_labels, batch_labels, num_datasets = prep_data_for_eval(df, metadf, 50,
+                                                                                            random_state=345)
+        divergence_score, entropy_score, silhouette_score = evaluate_scores(umap_codes, data, cell_type_labels,
+                                                                            batch_labels, num_datasets,
+                                                                            50, 50, 'cosine',
+                                                                            random_state=345)
+
+        f = open(os.path.join('output', fname, 'div_score.csv'), 'a', newline='')
+        score_writer = csv.writer(f)
+        score_writer.writerow([epoch, divergence_score])
+        print(divergence_score, entropy_score, silhouette_score)
+        gx1.to_csv(os.path.join('output', fname, 'gx1_epoch' + str(epoch) + '.csv'),
+                   index_label=False)
+
 
 
 if __name__ == '__main__':

@@ -3,56 +3,74 @@ import pandas as pd
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 
+
 def normalize(x):
     data = x.values
     data = 2 * (data - np.nanmin(data, axis=0)) / (np.nanmax(data, axis=0) - np.nanmin(data, axis=0)) - 1
     return pd.DataFrame(data=data, columns=x.columns, index=x.index)
 
 
-def load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'], seed=42,
-                    n_cells_to_select=500):
+def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'], 
+                    panel=None, seed=42, n_cells_to_select=0, test_size=0.2):
     """
     Function to load data and split into 2 inputs with train and test sets
     inputs:
         path: path to the data file
-        patient: name of the patient to consider
+        sample: name of the sample to consider
         batch_names: a list of batch names to split the data
-        n_cells_to_select: number of cells to select for quicker runs, if 0 then all cells are selected
+        n_cells_to_select: number of cells to select for quicker runs, if 0 then all cells are selected (min of the 2 batches)
+        test_size: proportion of the test set
     outputs:
         x1_train, x1_test: train and test sets form the first batch
         x2_train, x2_test: train and test sets form the second batch
     """
     df = pd.read_parquet(path, engine='pyarrow')
+    if(panel is not None):
+        df = df.loc[df['metadata_panel'].str.startswith(panel),:]
+        # update batches names that are present in the panel
+        panel_batch_names = list(set(df.loc[:,'metadata_batch']))
+        if(len([x for x in batch_names if x not in panel_batch_names])):
+            batch_names = panel_batch_names
+    # remove columns with ann (bcs of merging the panels)
+    df = df.dropna(axis=1)
+    if('metadata_batch' in df.columns and 'metadata_sample' in df.columns):
+        x1 = df.loc[(df['metadata_batch']==batch_names[0]) & (df['metadata_sample']==sample),:].copy()
+        x2 = df.loc[(df['metadata_batch']==batch_names[1]) & (df['metadata_sample']==sample),:].copy()
+    else:
+        idx = df.index.get_values()
+        x1_idx = [x for x in idx if sample in x and batch_names[0] in x and sample+'0' not in x]
+        x1_idx = [i for (i,t) in enumerate(idx) if t in x1_idx]
+        x1 = df.loc[x1_idx, :].copy()
+        x2_idx = [x for x in idx if sample in x and batch_names[1] in x and sample+'0' not in x]
+        x2_idx = [i for (i,t) in enumerate(idx) if t in x2_idx]
+        x2 = df.loc[x2_idx, :].copy()
+    # remove metadata columns
     selected_cols = [col for col in df.columns if "metadata" not in col]
-    df = df.loc[:, selected_cols]
-    idx = df.index.get_values()
-    x1_idx = [x for x in idx if patient in x and batch_names[0] in x and patient+'0' not in x][0]
-    x1 = df.loc[x1_idx, :].copy()
-    x2_idx = [x for x in idx if patient in x and batch_names[1] in x and patient+'0' not in x][0]
-    x2 = df.loc[x2_idx, :].copy()
+    x1 = x1.loc[:, selected_cols]
+    x2 = x2.loc[:, selected_cols]
     if n_cells_to_select > 0:
-        cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
-        x1 = x1.iloc[cells_to_select, :]
-        cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
-        x2 = x2.iloc[cells_to_select, :]
+        n_cells_to_select = np.min([n_cells_to_select,x1.shape[0], x2.shape[0]])
+    else:
+        n_cells_to_select = np.min([x1.shape[0], x2.shape[0]])
+    cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
+    x1 = x1.iloc[cells_to_select, :]
+    cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
+    x2 = x2.iloc[cells_to_select, :]
     x1 = normalize(x1)
     x2 = normalize(x2)
-    n = np.min([len(x1), len(x2)])
-    x1 = x1[:n]
-    x2 = x2[:n]
-    x1_train, x1_test = train_test_split(x1, test_size=0.2, random_state=42)
-    x2_train, x2_test = train_test_split(x2, test_size=0.2, random_state=42)
+    x1_train, x1_test = train_test_split(x1, test_size=test_size, random_state=seed)
+    x2_train, x2_test = train_test_split(x2, test_size=test_size, random_state=seed)
     return x1_train, x1_test, x2_train, x2_test
 
 
-def load_data_cytof(path, patient_id='rcc7', n=None):
+def load_data_cytof(path, patient_id='rcc7', n=None, upsample=True):
     full = pd.read_parquet(path, engine='pyarrow')
     select_cols = [col for col in full.columns if "metadata" not in col]  # not include metadata
     select_cols.append('metadata_panel')
     full = full.loc[:, select_cols]
     panels = full.metadata_panel.unique()
     full_panel1 = full.loc[full['metadata_panel'] == panels[0]]
-    #full_panel2 = full.loc[full['metadata_panel'] == panels[1]]
+    # full_panel2 = full.loc[full['metadata_panel'] == panels[1]]
 
     # start working with batches and patients in panel1 only
     full_panel1 = full_panel1.dropna(how='all', axis='columns')
@@ -65,10 +83,16 @@ def load_data_cytof(path, patient_id='rcc7', n=None):
     full_patient_batch1 = full_patient.loc[full_patient['batch'] == batches[0]]  # split into the 2 batches
     full_patient_batch2 = full_patient.loc[full_patient['batch'] == batches[1]]  # for this patient
 
+    if upsample:
+        if len(full_patient_batch1) < len(full_patient_batch2):
+            full_patient_batch1 = full_patient_batch1.sample(n=len(full_patient_batch2), replace=True)
+        elif len(full_patient_batch2) < len(full_patient_batch1):
+            full_patient_batch2 = full_patient_batch2.sample(n=len(full_patient_batch1), replace=True)
+
     if n is not None:
         full_patient_batch1 = shuffle(full_patient_batch1)
         full_patient_batch2 = shuffle(full_patient_batch2)
-        full_patient_batch1 = full_patient_batch1.iloc[:n, :]  # batch 1 has otherwise much more number of cells
+        full_patient_batch1 = full_patient_batch1.iloc[:n, :]
         full_patient_batch2 = full_patient_batch2.iloc[:n, :]
 
     # y = full_patient_batch1["batch"]  # the label is batch1 (the reference batch)
