@@ -35,16 +35,13 @@ class GAN():
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
-
         # Build the generator
         self.generator = self.build_generator()
 
         # The generator takes x1 as input and generates gen_x1 (fake x2)
-        x1 = Input(shape=(self.data_size,))
-        gen_x1, code1 = self.generator(x1)
-
-        #x2 = Input(shape=(self.data_size,))
-        #gen_x2 = self.generator(x2)
+        x1 = Input(shape=(self.data_size,), name = 'x1')
+        x2 = Input(shape=(self.data_size,), name = 'x2')
+        gen_x1, code1, gen_x2, code2 = self.generator(x1, x2)
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
@@ -55,7 +52,7 @@ class GAN():
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(inputs=x1, outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
+        self.combined = Model(inputs=[x1,x2], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
         losses = {'generator': self.model_loss(code1),
                   'discriminator': 'binary_crossentropy'}
         loss_weights = {'generator': 1,
@@ -97,6 +94,7 @@ class GAN():
         #x = Input(shape=(self.data_size,))
         #x_gen = model(x)
         return model #Model(x, x_gen, name='generator')
+
 
     def build_discriminator(self):
         model = Sequential()
@@ -152,10 +150,8 @@ class GAN():
                 x2 = x2_train[idx2]
 
                 # Generate a batch of new images
-                gen_x1, _ = self.generator.predict(x1)
-                gen_x2, _ = self.generator.predict(x2) ###
-                self.latent1 = self.generator.latent_space(x1)
-                self.latent2 = self.generator.latent_space(x2)
+                gen_x1, _, _, _ = self.generator.predict(x1, x2)
+                #self.latent2 = self.generator.latent_space(x2)
 
 
                 # Train the discriminator
@@ -180,8 +176,8 @@ class GAN():
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
-            gen_x1, _ = self.generator.predict(x1_train)
-            g_loss = self.combined.test_on_batch(x1_train, [x1_train, valid_full]) #
+            gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
+            g_loss = self.combined.test_on_batch([x1_train, x2_train], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             # g_loss = np.mean(g_loss_list, axis=0)
@@ -209,7 +205,7 @@ class GAN():
         return plot_model
 
     def transform_batch(self, x):
-        gx, _ = self.generator.predict(x)
+        gx, _, _, _ = self.generator.predict(x,x) #TODO change
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
@@ -224,7 +220,7 @@ class GAN():
             plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
                       folder_name=folder)
 
-        gx1, _ = self.generator.predict(x1)
+        gx1, _, _, _ = self.generator.predict(x1, x2)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
         # export output dataframes
         gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))
