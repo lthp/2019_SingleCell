@@ -4,16 +4,16 @@ from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, Lea
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
-from info_on_checkpoint import save_info, save_plots
 import numpy as np
 from datetime import datetime
-
+from info_on_checkpoint import save_info, save_plots
 
 '''
-This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
-the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and has batch norm layers. 
-This model seems to be performing good.
+This model is an optimized gan where the generator is an autoencoder with reconstruction loss, but the structure of 
+the generator autoencoder is diamond shaped (not with a bottleneck layer) AND has batch norm layers.
 '''
+
+
 class GAN():
     def __init__(self, n_markers=30):
         self.data_size = n_markers
@@ -53,17 +53,29 @@ class GAN():
         model.add(Dense(30, input_dim=self.data_size))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(15))
+
+        model.add(Dense(40))
+        model.add(LeakyReLU(alpha=0.2))
+
+        model.add(Dense(50))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
-        model.add(Dense(20))
+
+        model.add(Dense(40))
         model.add(LeakyReLU(alpha=0.2))
         model.add(BatchNormalization(momentum=0.8))
+
+        model.add(Dense(30))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(BatchNormalization(momentum=0.8))
+
         model.add(Dense(self.data_size, activation='tanh'))
+        # model.add(Reshape(self.img_shape))
         model.summary()
 
         x1 = Input(shape=(self.data_size,))
         x1_gen = model(x1)
+
         return Model(x1, x1_gen, name='generator')
 
     def build_discriminator(self):
@@ -86,9 +98,9 @@ class GAN():
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        os.makedirs(os.path.join('figures_bottleneck', fname))
-        os.makedirs(os.path.join('output_bottleneck', fname))
-        os.makedirs(os.path.join('models_bottleneck', fname))
+        os.makedirs(os.path.join('figures_dimond_batchnorm', fname))
+        os.makedirs(os.path.join('output_dimond_batchnorm', fname))
+        os.makedirs(os.path.join('models_dimond_batchnorm', fname))
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -166,12 +178,11 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
-                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
-                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
+                self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
+                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_dimond_batchnorm')
+                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_dimond_batchnorm')
                 save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False,
-                                         dir_name='figures_bottleneck')
-
+                                         dir_name='figures_dimond_batchnorm')
         return plot_model
 
 
@@ -179,15 +190,14 @@ if __name__ == '__main__':
     import os
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
 
-    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
     path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
-    # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
     x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch2'],
                                                            seed=42, panel='tcell')
+    # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
 
-    # path = os.getcwd()
+    # path = r'C:\Users\Public\PycharmProjects\deep\2019_DL_Class\loading_and_preprocessing'
     # path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
     # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
-    #                                                       seed=42, n_cells_to_select=0)
+    # seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
