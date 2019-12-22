@@ -21,21 +21,22 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling):
     Returns:
         dataset: a dict with keys 'gene_exp', 'gene_sym', 'sample_labels', 'cell_labels', 'cluster_labels'
     """
-    all_classes = []
+    all_classes = np.array([])
     classes_per_dataset = []
     for filename in dataset_file_list:
         df = pd.read_csv(filename, header=None, nrows = 3)
         dat = df[df.columns[1:]].values
         cluster_labels = dat[2, :].astype(int)
         classes_per_dataset.append(len(np.unique(cluster_labels)))
-        all_classes.append(cluster_labels)
+        all_classes = np.concatenate([ all_classes, cluster_labels ])
     major_class = max(np.unique(all_classes, return_counts = True)[1])
-    resampling_size = np.cumproduct(classes_per_dataset)[-1]* major_class / \
-                      np.mean(classes_per_dataset)**len(classes_per_dataset)
+    resampling_size = np.cumproduct(classes_per_dataset)[-1] * \
+                      np.int((major_class / np.min(classes_per_dataset) + 1))
+    # Resampling heuristics: the number of sample in the resampled datasets
+    # should be a multiple of the number of the number of classes in each dataset and
+    # and the number of sample per class be >= to the number of sample in the major class
 
-    target_sizes = {}
-    for class_ in np.unique(all_classes):
-        target_sizes[class_] = resampling_size
+
 
     dataset_list = []
     for filename in dataset_file_list:
@@ -56,8 +57,12 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling):
         if scaling:  # scale to [0,1]
             minmax_scale(gene_exp, feature_range=(0, 1), axis=1, copy=False)
         if oversample:
+            target_sizes = {}
+            cluster_q = np.unique(cluster_labels)
+            for class_ in cluster_q:
+                target_sizes[class_] = int  (resampling_size / len(cluster_q))
             gene_exp = gene_exp.transpose()
-            gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True, sampling_strategy = resampling_size ).fit_sample(gene_exp, cluster_labels )
+            gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True, sampling_strategy = target_sizes ).fit_sample(gene_exp, cluster_labels )
             cell_labels = cell_labels[sampling_idx]
             sample_labels = sample_labels[sampling_idx]
             gene_exp = gene_exp.transpose()
@@ -266,6 +271,6 @@ def pre_processing(dataset_file_list, pre_process_paras):
 
 if __name__ == '__main__':
     dataset_file_list = ['data/muraro_seurat.csv', 'data/baron_human_seurat.csv']
-    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True}
+    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True}
     dataset_list = pre_processing(dataset_file_list, pre_process_paras)
     print()
