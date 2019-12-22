@@ -6,6 +6,8 @@ from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, Lea
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
+from tensorflow.keras import backend as K
+from tensorflow.keras.losses import categorical_crossentropy
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +18,7 @@ from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_m
 from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity
 from AE_bermuda import Generator
+
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
@@ -38,7 +41,10 @@ class GAN():
 
         # The generator takes x1 as input and generates gen_x1 (fake x2)
         x1 = Input(shape=(self.data_size,))
-        gen_x1 = self.generator(x1)
+        gen_x1, code1 = self.generator(x1)
+
+        #x2 = Input(shape=(self.data_size,))
+        #gen_x2 = self.generator(x2)
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
@@ -46,15 +52,43 @@ class GAN():
         # The discriminator takes generated data as input and determines validity
         validity = self.discriminator(gen_x1)
 
+
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(inputs=x1, outputs=[gen_x1, validity])
-        losses = {'generator': 'mean_absolute_error',
+        self.combined = Model(inputs=x1, outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
+        losses = {'generator': self.model_loss(code1),
                   'discriminator': 'binary_crossentropy'}
         loss_weights = {'generator': 1,
                         'discriminator': 0.1}
         metrics = {'discriminator': 'accuracy'}
         self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics)
+
+    ##############################################
+
+
+    def calculate_tf_loss(self, *args, **kwargs):
+        kl_cost = 0.05
+        return kl_cost
+
+    def calculate_reconstruction_loss(self, y_true, y_pred):
+        r_cost = tf.keras.losses.MSE(y_true, y_pred)# todo: Keras already averages over all tensor values, this might be redundant
+        return r_cost
+
+
+    def model_loss(self, code1):
+        """" Wrapper function which calculates auxiliary values for the complete loss function.
+         Returns a *function* which calculates the complete loss given only the input and target output """
+
+        # KL loss
+        #transfer_loss = self.calculate_tf_loss
+        #latent1 = self.latent1
+        #pairs = self.cluster_pairs
+        # Reconstruction loss
+        def bermuda_loss(y_true, y_pred):
+            reconstruct_loss = self.calculate_reconstruction_loss
+            full_loss = reconstruct_loss(y_true, y_pred)
+            return full_loss
+        return bermuda_loss
 
     def build_generator(self):
         model = Generator(20, self.data_size )
@@ -82,7 +116,7 @@ class GAN():
         validity = model(x2)
         return Model(x2, validity, name='discriminator')
 
-    def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
+    def train(self, x1_train_df, x2_train_df, cluster_pairs, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         os.makedirs(os.path.join('figures_bottleneck', fname))
         os.makedirs(os.path.join('output_dataframes_bottleneck', fname))
@@ -92,6 +126,7 @@ class GAN():
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
+        self.cluster_pairs = cluster_pairs
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
@@ -117,10 +152,10 @@ class GAN():
                 x2 = x2_train[idx2]
 
                 # Generate a batch of new images
-                gen_x1 = self.generator.predict(x1)
-                gen_x2 = self.generator.predict(x2) ###
-                latent1 = self.generator.latent_space(x1)
-                latent2 = self.generator.latent_space(x2)
+                gen_x1, _ = self.generator.predict(x1)
+                gen_x2, _ = self.generator.predict(x2) ###
+                self.latent1 = self.generator.latent_space(x1)
+                self.latent2 = self.generator.latent_space(x2)
 
 
                 # Train the discriminator
@@ -139,13 +174,14 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch(x1, [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                g_loss = self.combined.train_on_batch([x1, x2], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+
 
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
-            gen_x1 = self.generator.predict(x1_train)
-            g_loss = self.combined.test_on_batch(x1_train, [x1_train, valid_full])
+            gen_x1, _ = self.generator.predict(x1_train)
+            g_loss = self.combined.test_on_batch(x1_train, [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             # g_loss = np.mean(g_loss_list, axis=0)
@@ -173,7 +209,7 @@ class GAN():
         return plot_model
 
     def transform_batch(self, x):
-        gx = self.generator.predict(x)
+        gx, _ = self.generator.predict(x)
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
@@ -188,7 +224,7 @@ class GAN():
             plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
                       folder_name=folder)
 
-        gx1 = self.generator.predict(x1)
+        gx1, _ = self.generator.predict(x1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
         # export output dataframes
         gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))
@@ -228,4 +264,4 @@ if __name__ == '__main__':
 
 
     gan = GAN(len(x1_train['gene_sym'])) # n_markers
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan.train(x1_train, x2_train, cluster_pairs, epochs=3000, batch_size=64, sample_interval=50)

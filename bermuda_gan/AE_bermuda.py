@@ -49,7 +49,7 @@ class Generator(tf.keras.Model): # Remark, the name of the model class is automa
     def call(self, input_features):
         code = self.encoder(input_features)
         reconstructed = self.decoder(code)
-        return reconstructed
+        return reconstructed, code
 
     def latent_space(self, input_features):
         code = self.encoder(input_features)
