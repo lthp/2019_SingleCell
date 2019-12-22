@@ -165,9 +165,10 @@ class GAN():
             plot_model["g_loss_total"].append(g_loss[0])
 
             # If at save interval => save generated image samples
-            if epoch % sample_interval == 0:
-                print('generating plots')
-                self.plot_progress(epoch, x1_train_df, x2_train_df, plot_model, fname)
+            # TODO add back
+            # if epoch % sample_interval == 0:
+            #     print('generating plots')
+            #     self.plot_progress(epoch, x1_train, x2_train, plot_model, fname)
 
         return plot_model
 
@@ -177,6 +178,8 @@ class GAN():
         return gx_df
 
     def plot_progress(self, epoch, x1, x2, metrics, fname):
+        x1 = pd.DataFrame(x1)
+        x2 = pd.DataFrame(x2)
         folder = 'figures_bottleneck'
         plot_metrics(metrics, os.path.join(folder, fname, 'metrics'), autoencoder=True)
         if epoch == 0:
@@ -225,4 +228,4 @@ if __name__ == '__main__':
 
 
     gan = GAN(len(x1_train['gene_sym'])) # n_markers
-    gan.train(x1_train[0:3996], x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
