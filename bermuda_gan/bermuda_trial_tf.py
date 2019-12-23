@@ -22,6 +22,8 @@ from helpers_bermuda import pre_processing, read_cluster_similarity
 from AE_bermuda import Autoencoder
 from MMD_bermuda import LossWeighter
 
+tf.keras.backend.set_floatx('float64')
+
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
 the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and has batch norm layers. 
@@ -53,17 +55,19 @@ class GAN():
         self.autoencoder = self.build_generator()
 
         # Build the full generator - Predictor
-        gen_x1, code1 = self.autoencoder(x1, x1_labels) # Will be reconstruction loss
+        gen_x1, code1 = self.autoencoder(x1, x1_labels) # Will be reconstruction
         gen_x2, code2 = self.autoencoder(x2, x2_labels)  # Will be reconstruction loss
 
         self.fullGenerator = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_generator')
         self.fullGenerator.compile(loss={'autoencoder': self.model_loss(code1, x1_labels), 'autoencoder_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
                                  loss_weights={'autoencoder': 0.5, 'autoencoder_1': 0.5}) # ['loss', 'autoencoder_loss', 'autoencoder_1_loss']
 
+
         # Build the full generator - Trainable
+        self.LossWeighter = LossWeighter( code1, x1_labels, code2, x2_labels, self.cluster_pairs)
         reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
         reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
-        weightedLoss = LossWeighter(name='weighted_loss')([reconstr_loss1, reconstr_loss2])
+        weightedLoss = self.LossWeighter([reconstr_loss1, reconstr_loss2])
         self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
         self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
 
@@ -210,6 +214,7 @@ class GAN():
                 # Train the generator (to have the discriminator label samples as valid)
                 #g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
                 g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
+                print(g_loss2)
 
 
                 g_loss_list.append(g_loss2)
