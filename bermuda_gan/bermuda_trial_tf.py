@@ -9,6 +9,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras import backend as K
 from tensorflow.keras.losses import categorical_crossentropy
 
+
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
@@ -19,13 +20,19 @@ from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_m
 from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity
 from AE_bermuda import Generator
-
+from MMD_bermuda import LossWeighter
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
 the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and has batch norm layers. 
 This model seems to be performing good.
 '''
+
+
+def calculate_reconstruction_loss2(x):
+    true, pred = x
+    return tf.keras.losses.MSE(true, pred)
+
 class GAN():
     def __init__(self, n_markers=30, cluster_pairs = None):
         self.data_size = n_markers
@@ -43,16 +50,22 @@ class GAN():
         # The generator takes x1 as input and generates gen_x1 (fake x2)
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
-        x1_labels = []
-        x2_labels = []
+        x1_labels = Input(shape= (1), name='x1_labels')
+        x2_labels = Input(shape= (1), name='x2_labels')
 
-        gen_x1, code1, _, _ = self.generator(x1) # Will be reconstruction loss
-        gen_x2, code2, _, _ = self.generator(x2)  # Will be reconstruction loss
+        gen_x1, code1, _, _ = self.generator(x1, x1_labels) # Will be reconstruction loss
+        gen_x2, code2, _, _ = self.generator(x2, x2_labels)  # Will be reconstruction loss
 
-        self.merge = self.build_merge()
-        self.fullEncoder = Model( inputs = [x1, x2] , outputs = [gen_x1, gen_x2], name = 'full_encoder')
-        self.fullEncoder.compile(loss={'generator': 'mse', 'generator_1': 'mse'}, optimizer=optimizer,
+        self.fullEncoder = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_encoder')
+        self.fullEncoder.compile(loss={'generator': self.model_loss(code1, x1_labels), 'generator_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
                                  loss_weights={'generator': 0.5, 'generator_1': 0.5}) # ['loss', 'generator_loss', 'generator_1_loss']
+
+        reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')(x1, gen_x1)
+        reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')(x2, gen_x2)
+        weightedLoss = LossWeighter(name='weighted_loss')([reconstr_loss1, reconstr_loss2])
+        self.fullEncoder_train = Model(inputs = [x1, gen_x1,x2, x2] , outputs = weightedLoss)
+        self.fullEncoder_train.compile(optimizer='sgd', loss=self.ignoreLoss)
+
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
@@ -63,8 +76,8 @@ class GAN():
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(inputs=[x1, x2], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
-        losses = {'generator': self.model_loss(code1), #TODO determine how the genertor is optimized there!!
+        self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
+        losses = {'generator': 'mse', #TODO determine how the genertor is optimized there!!
                   'discriminator': 'binary_crossentropy'}
         loss_weights = {'generator': 1,
                         'discriminator': 0.1}
@@ -73,6 +86,8 @@ class GAN():
 
     ##############################################
 
+    def ignoreLoss(true, pred):
+        return pred  # this just tries to minimize the prediction without any extra computation
 
     def calculate_tf_loss(self, *args, **kwargs):
         kl_cost = 0.05
@@ -83,14 +98,20 @@ class GAN():
         return r_cost
 
 
-    def model_loss(self, code1):
+
+
+    def model_loss(self, code, cluster_labels):
         """" Wrapper function which calculates auxiliary values for the complete loss function.
          Returns a *function* which calculates the complete loss given only the input and target output """
 
         # KL loss
         #transfer_loss = self.calculate_tf_loss
         #latent1 = self.latent1
-        pairs = self.cluster_pairs
+        #pairs = self.cluster_pairs
+        #i = 0
+        #if len(cluster_labels):
+        #    idx = np.where(cluster_labels == (pairs[i][0] | pairs[i][1]))
+
         # Reconstruction loss
         def bermuda_loss(y_true, y_pred):
             reconstruct_loss = self.calculate_reconstruction_loss
@@ -167,7 +188,7 @@ class GAN():
 
                 # Generate a batch of new images
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
-                gen_x1, gen_x2 = self.fullEncoder.predict([x1, x2])
+                gen_x1, gen_x2 = self.fullEncoder.predict([x1, x2, x1_labels, x2_labels])
                 #self.latent2 = self.generator.latent_space(x2)
 
 
@@ -187,15 +208,17 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
 
 
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            gen_x1, _ = self.fullEncoder.predict([x1_train, x2_train])
-            g_loss = self.combined.test_on_batch([x1_train, x2_train], [x1_train, valid_full]) #
+            all_labels1 = x1_train_df['cluster_labels']
+            all_labels2 = x2_train_df['cluster_labels']
+            gen_x1, _ = self.fullEncoder.predict([x1_train, x2_train, all_labels1, all_labels2])
+            g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             # g_loss = np.mean(g_loss_list, axis=0)
