@@ -49,11 +49,12 @@ class GAN():
         x1 = Input(shape=(self.data_size,))
         x = x1
         for n in number_of_nodes:
-            x = Dense(n)(x)
-            x = LeakyReLU(alpha=0.2)(x)
             x = BatchNormalization(momentum=0.8)(x)
-        x = Dense(self.data_size)(x)
-        #x = Activation('tanh')(x)
+            x = LeakyReLU(alpha=0.2)(x)
+            x = Dense(n)(x)
+
+        #x = Dense(self.data_size)(x)
+        x = Activation('tanh')(x)
 
         x = Add()([x, x1])
         return Model(x1, x)
@@ -62,8 +63,8 @@ class GAN():
     def build_generator(self):
         x1 = Input(shape=(self.data_size,))
 
-        block1 = self.residual_block([30, 40])(x1)
-        block2 = self.residual_block([30, 40])(block1)
+        block1 = self.residual_block([40, self.data_size])(x1)
+        block2 = self.residual_block([40, self.data_size])(block1)
 
         # model.add(Reshape(self.img_shape))
 
@@ -171,7 +172,7 @@ if __name__ == '__main__':
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
     path = r'C:\Users\heida\Documents\ETH\Deep Learning\chevrier_data_pooled_panels.parquet'
     x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch2'],
-                                                           seed=42, panel='tcell', n_cells_to_select=1000)
+                                                           seed=42, panel='tcell')
     # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
 
     # path = r'C:\Users\Public\PycharmProjects\deep\2019_DL_Class\loading_and_preprocessing'
