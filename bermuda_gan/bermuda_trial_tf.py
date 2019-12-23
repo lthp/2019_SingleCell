@@ -38,44 +38,41 @@ class GAN():
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
         optimizer = Adam(0.0002, 0.5)
+        x1 = Input(shape=(self.data_size,), name = 'x1')
+        x2 = Input(shape=(self.data_size,), name = 'x2')
+        x1_labels = Input(shape= (1), name='x1_labels')
+        x2_labels = Input(shape= (1), name='x2_labels')
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=optimizer,
                                    metrics=['accuracy'])
-        # Build the generator
+
+        # Build the simple autoencoder
         self.generator = self.build_generator()
 
-        # The generator takes x1 as input and generates gen_x1 (fake x2)
-        x1 = Input(shape=(self.data_size,), name = 'x1')
-        x2 = Input(shape=(self.data_size,), name = 'x2')
-        x1_labels = Input(shape= (1), name='x1_labels')
-        x2_labels = Input(shape= (1), name='x2_labels')
-
-        gen_x1, code1, _, _ = self.generator(x1, x1_labels) # Will be reconstruction loss
-        gen_x2, code2, _, _ = self.generator(x2, x2_labels)  # Will be reconstruction loss
+        # Build the full generator - Predictor
+        gen_x1, code1 = self.generator(x1, x1_labels) # Will be reconstruction loss
+        gen_x2, code2 = self.generator(x2, x2_labels)  # Will be reconstruction loss
 
         self.fullEncoder = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_encoder')
         self.fullEncoder.compile(loss={'generator': self.model_loss(code1, x1_labels), 'generator_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
                                  loss_weights={'generator': 0.5, 'generator_1': 0.5}) # ['loss', 'generator_loss', 'generator_1_loss']
 
-        reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')(x1, gen_x1)
-        reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')(x2, gen_x2)
+        # Build the full generator - Trainable
+        reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
+        reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
         weightedLoss = LossWeighter(name='weighted_loss')([reconstr_loss1, reconstr_loss2])
-        self.fullEncoder_train = Model(inputs = [x1, gen_x1,x2, x2] , outputs = weightedLoss)
-        self.fullEncoder_train.compile(optimizer='sgd', loss=self.ignoreLoss)
+        self.fullEncoder_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
+        self.fullEncoder_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
 
 
-        # For the combined model we will only train the generator
+        # Build combined model
         self.discriminator.trainable = False
-
         # The discriminator takes generated data as input and determines validity
         validity = self.discriminator(gen_x1)
 
-
-        # The combined model  (stacked generator and discriminator)
-        # Trains the generator to fool the discriminator
         self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
         losses = {'generator': 'mse', #TODO determine how the genertor is optimized there!!
                   'discriminator': 'binary_crossentropy'}
@@ -86,7 +83,7 @@ class GAN():
 
     ##############################################
 
-    def ignoreLoss(true, pred):
+    def ignoreLoss(self, true, pred):
         return pred  # this just tries to minimize the prediction without any extra computation
 
     def calculate_tf_loss(self, *args, **kwargs):
@@ -159,6 +156,8 @@ class GAN():
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
+        all_labels1 = x1_train_df['cluster_labels']
+        all_labels2 = x2_train_df['cluster_labels']
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
@@ -184,6 +183,7 @@ class GAN():
                 x2 = x2_train[idx2]
                 x1_labels = x1_train_df['cluster_labels'][idx1]
                 x2_labels = x2_train_df['cluster_labels'][idx2]
+                dummy_out = np.zeros((len(x1_labels),))
 
 
                 # Generate a batch of new images
@@ -208,15 +208,14 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                #g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                g_loss2 = self.fullEncoder_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
 
 
-                g_loss_list.append(g_loss)
+                g_loss_list.append(g_loss2)
                 d_loss_list.append(d_loss)
 
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            all_labels1 = x1_train_df['cluster_labels']
-            all_labels2 = x2_train_df['cluster_labels']
             gen_x1, _ = self.fullEncoder.predict([x1_train, x2_train, all_labels1, all_labels2])
             g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
@@ -241,16 +240,16 @@ class GAN():
             # TODO add back
             # if epoch % sample_interval == 0:
             #     print('generating plots')
-            #     self.plot_progress(epoch, x1_train, x2_train, plot_model, fname)
+            #     self.plot_progress(epoch, x1_train, x2_train, plot_model, fname, all_labels1, all_labels2 )
 
         return plot_model
 
-    def transform_batch(self, x):
-        gx, _, _, _ = self.generator.predict(x) #TODO change
+    def transform_batch(self, x, labels): #TODO NOT USED???
+        gx, _= self.generator.predict(x, labels) #TODO change
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
-    def plot_progress(self, epoch, x1, x2, metrics, fname):
+    def plot_progress(self, epoch, x1, x2, metrics, fname, labels1, labels2):
         x1 = pd.DataFrame(x1)
         x2 = pd.DataFrame(x2)
         folder = 'figures_bottleneck'
@@ -261,7 +260,7 @@ class GAN():
             plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
                       folder_name=folder)
 
-        gx1, _, _, _ = self.generator.predict(x1)
+        gx1, _, = self.generator.predict(x1, labels1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
         # export output dataframes
         gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))

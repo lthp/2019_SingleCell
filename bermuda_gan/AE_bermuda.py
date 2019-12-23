@@ -49,12 +49,12 @@ class Generator(tf.keras.Model): # Remark, the name of the model class is automa
     def call(self, input_features, input_labels):
         code = self.encoder(input_features)
         reconstructed = self.decoder(code)
-        return reconstructed, code, reconstructed, code
+        return reconstructed, code
 
     def predict(self, input_features, input_labels):
         code = self.encoder(input_features)
         reconstructed = self.decoder(code)
-        return reconstructed, code, reconstructed, code
+        return reconstructed, code
 
 
 

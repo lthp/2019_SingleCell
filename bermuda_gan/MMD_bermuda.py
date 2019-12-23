@@ -18,6 +18,7 @@ class LossWeighter(tf.keras.layers.Layer):
     def __init__(self, **kwargs):  # kwargs can have 'name' and other things
         super(LossWeighter, self).__init__(**kwargs)
 
+
     # create the trainable weight here, notice the constraint between 0 and 1
     def build(self, inputShape):
         self.weight = 0.05 # TODO change here
