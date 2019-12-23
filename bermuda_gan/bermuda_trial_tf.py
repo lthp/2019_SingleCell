@@ -19,7 +19,7 @@ sys.path.append("..")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity
-from AE_bermuda import Generator
+from AE_bermuda import Autoencoder
 from MMD_bermuda import LossWeighter
 
 '''
@@ -50,22 +50,22 @@ class GAN():
                                    metrics=['accuracy'])
 
         # Build the simple autoencoder
-        self.generator = self.build_generator()
+        self.autoencoder = self.build_generator()
 
         # Build the full generator - Predictor
-        gen_x1, code1 = self.generator(x1, x1_labels) # Will be reconstruction loss
-        gen_x2, code2 = self.generator(x2, x2_labels)  # Will be reconstruction loss
+        gen_x1, code1 = self.autoencoder(x1, x1_labels) # Will be reconstruction loss
+        gen_x2, code2 = self.autoencoder(x2, x2_labels)  # Will be reconstruction loss
 
-        self.fullEncoder = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_encoder')
-        self.fullEncoder.compile(loss={'generator': self.model_loss(code1, x1_labels), 'generator_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
-                                 loss_weights={'generator': 0.5, 'generator_1': 0.5}) # ['loss', 'generator_loss', 'generator_1_loss']
+        self.fullGenerator = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_generator')
+        self.fullGenerator.compile(loss={'autoencoder': self.model_loss(code1, x1_labels), 'autoencoder_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
+                                 loss_weights={'autoencoder': 0.5, 'autoencoder_1': 0.5}) # ['loss', 'autoencoder_loss', 'autoencoder_1_loss']
 
         # Build the full generator - Trainable
         reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
         reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
         weightedLoss = LossWeighter(name='weighted_loss')([reconstr_loss1, reconstr_loss2])
-        self.fullEncoder_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
-        self.fullEncoder_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
+        self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
+        self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
 
 
         # Build combined model
@@ -74,12 +74,12 @@ class GAN():
         validity = self.discriminator(gen_x1)
 
         self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
-        losses = {'generator': 'mse', #TODO determine how the genertor is optimized there!!
+        losses = {'autoencoder': 'mse', #TODO determine how the genertor is optimized there!!
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'generator': 1,
+        loss_weights = {'autoencoder': 1,
                         'discriminator': 0.1}
         metrics = {'discriminator': 'accuracy'}
-        self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'generator_loss', 'discriminator_loss', 'discriminator_accuracy']
+        self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
 
     ##############################################
 
@@ -117,7 +117,7 @@ class GAN():
         return bermuda_loss
 
     def build_generator(self):
-        model = Generator(20, self.data_size )
+        model = Autoencoder(20, self.data_size )
         #model.summary()
 
         #x = Input(shape=(self.data_size,))
@@ -188,7 +188,7 @@ class GAN():
 
                 # Generate a batch of new images
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
-                gen_x1, gen_x2 = self.fullEncoder.predict([x1, x2, x1_labels, x2_labels])
+                gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
                 #self.latent2 = self.generator.latent_space(x2)
 
 
@@ -209,14 +209,14 @@ class GAN():
 
                 # Train the generator (to have the discriminator label samples as valid)
                 #g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
-                g_loss2 = self.fullEncoder_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
+                g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
 
 
                 g_loss_list.append(g_loss2)
                 d_loss_list.append(d_loss)
 
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            gen_x1, _ = self.fullEncoder.predict([x1_train, x2_train, all_labels1, all_labels2])
+            gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
             g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
@@ -245,7 +245,7 @@ class GAN():
         return plot_model
 
     def transform_batch(self, x, labels): #TODO NOT USED???
-        gx, _= self.generator.predict(x, labels) #TODO change
+        gx, _= self.autoencoder.predict(x, labels) #TODO change
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
@@ -260,7 +260,7 @@ class GAN():
             plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
                       folder_name=folder)
 
-        gx1, _, = self.generator.predict(x1, labels1)
+        gx1, _, = self.autoencoder.predict(x1, labels1)
         gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
         # export output dataframes
         gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))

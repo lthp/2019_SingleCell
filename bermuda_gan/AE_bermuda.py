@@ -40,9 +40,9 @@ class Decoder(tf.keras.layers.Layer):
         return self.output_layer(activation)
 
 
-class Generator(tf.keras.Model): # Remark, the name of the model class is automatically set
+class Autoencoder(tf.keras.Model): # Remark, the name of the model class is automatically set
     def __init__(self, intermediate_dim, original_dim):
-        super(Generator, self).__init__()
+        super(Autoencoder, self).__init__()
         self.encoder = Encoder(intermediate_dim=intermediate_dim)
         self.decoder = Decoder(intermediate_dim=intermediate_dim, original_dim=original_dim)
 
