@@ -46,12 +46,12 @@ class Autoencoder(tf.keras.Model): # Remark, the name of the model class is auto
         self.encoder = Encoder(intermediate_dim=intermediate_dim)
         self.decoder = Decoder(intermediate_dim=intermediate_dim, original_dim=original_dim)
 
-    def call(self, input_features, input_labels):
+    def call(self, input_features): # input_labels):
         code = self.encoder(input_features)
         reconstructed = self.decoder(code)
         return reconstructed, code
 
-    def predict(self, input_features, input_labels):
+    def predict(self, input_features ): #input_labels):
         code = self.encoder(input_features)
         reconstructed = self.decoder(code)
         return reconstructed, code

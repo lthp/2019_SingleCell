@@ -21,6 +21,7 @@ from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity
 from AE_bermuda import Autoencoder
 from MMD_bermuda import LossWeighter
+from tensorflow.keras.backend import equal, sum
 
 tf.keras.backend.set_floatx('float64')
 
@@ -31,15 +32,13 @@ This model seems to be performing good.
 '''
 
 
-def calculate_reconstruction_loss2(x):
-    true, pred = x
-    return tf.keras.losses.MSE(true, pred)
-
 class GAN():
     def __init__(self, n_markers=30, cluster_pairs = None):
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
-        optimizer = Adam(0.0002, 0.5)
+        self.optimizer = Adam(0.0002, 0.5)
+
+
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
         x1_labels = Input(shape= (1), name='x1_labels')
@@ -48,29 +47,60 @@ class GAN():
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
-                                   optimizer=optimizer,
+                                   optimizer=self.optimizer,
                                    metrics=['accuracy'])
 
         # Build the simple autoencoder
-        self.autoencoder = self.build_generator()
-
-        # Build the full generator - Predictor
-        gen_x1, code1 = self.autoencoder(x1, x1_labels) # Will be reconstruction
-        gen_x2, code2 = self.autoencoder(x2, x2_labels)  # Will be reconstruction loss
-
-        self.fullGenerator = Model( inputs = [x1, x2, x1_labels, x2_labels] , outputs = [gen_x1, gen_x2], name = 'full_generator')
-        self.fullGenerator.compile(loss={'autoencoder': self.model_loss(code1, x1_labels), 'autoencoder_1': self.model_loss(code2, x2_labels)}, optimizer=optimizer,
-                                 loss_weights={'autoencoder': 0.5, 'autoencoder_1': 0.5}) # ['loss', 'autoencoder_loss', 'autoencoder_1_loss']
+        self.autoencoder = Autoencoder(20, self.data_size )
+        gen_x1, code1 = self.autoencoder(x1)#, x1_labels) # Will be reconstruction
+        gen_x2, code2 = self.autoencoder(x2) #, x2_labels)  # Will be reconstruction loss
 
 
-        # Build the full generator - Trainable
-        self.LossWeighter = LossWeighter( code1, x1_labels, code2, x2_labels, self.cluster_pairs)
-        reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
-        reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
-        weightedLoss = self.LossWeighter([reconstr_loss1, reconstr_loss2])
-        self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
-        self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
+        # ['loss', 'autoencoder_loss', 'autoencoder_1_loss']
 
+        def calculate_reconstruction_loss(y_true, y_pred):
+            r_cost = tf.keras.losses.MSE(y_true,
+                                         y_pred)  # todo: Keras already averages over all tensor values, this might be redundant
+            return r_cost
+
+        def reconstruction_loss(x1, gen_x1):
+            Loss =  calculate_reconstruction_loss(gen_x1, x1) + calculate_reconstruction_loss(gen_x2, x2) #TODO AM I USING THIS GUY?????
+            return Loss
+
+        def transfert_loss(x1, gen_x1):
+            Loss = sum(code1) - sum(code2) + sum(x1_labels) / 3
+            return Loss
+
+
+        def autoencoder_loss(x1, gen_x1):
+            Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
+            return Loss
+
+        self.fullGenerator = Model(inputs=x1, outputs=gen_x1)
+        self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) # TRY WITH USUAL LOSS PAIRING
+
+        # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
+
+
+        #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
+            #name = 'full_generator')
+            # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
+
+
+            #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
+         #                          name='full_generator')
+        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
+
+
+        # # Build the full generator - Trainable
+        # self.LossWeighter = LossWeighter( code1, x1_labels, code2, x2_labels, self.cluster_pairs)
+        # reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
+        # reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
+        # weightedLoss = self.LossWeighter([reconstr_loss1, reconstr_loss2])
+        # self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
+        # self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
+        #
+        #
 
         # Build combined model
         self.discriminator.trainable = False
@@ -83,54 +113,14 @@ class GAN():
         loss_weights = {'autoencoder': 1,
                         'discriminator': 0.1}
         metrics = {'discriminator': 'accuracy'}
-        self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
+        self.combined.compile(loss=losses, optimizer=self.optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
 
     ##############################################
 
-    def ignoreLoss(self, true, pred):
-        return pred  # this just tries to minimize the prediction without any extra computation
-
-    def calculate_tf_loss(self, *args, **kwargs):
-        kl_cost = 0.05
-        return kl_cost
-
-    def calculate_reconstruction_loss(self, y_true, y_pred):
-        r_cost = tf.keras.losses.MSE(y_true, y_pred)# todo: Keras already averages over all tensor values, this might be redundant
-        return r_cost
-
-
-
-
-    def model_loss(self, code, cluster_labels):
-        """" Wrapper function which calculates auxiliary values for the complete loss function.
-         Returns a *function* which calculates the complete loss given only the input and target output """
-
-        # KL loss
-        #transfer_loss = self.calculate_tf_loss
-        #latent1 = self.latent1
-        #pairs = self.cluster_pairs
-        #i = 0
-        #if len(cluster_labels):
-        #    idx = np.where(cluster_labels == (pairs[i][0] | pairs[i][1]))
-
-        # Reconstruction loss
-        def bermuda_loss(y_true, y_pred):
-            reconstruct_loss = self.calculate_reconstruction_loss
-            full_loss = reconstruct_loss(y_true, y_pred) # reconstruct_loss(y_true2, y_pred2)
-            return full_loss
-        return bermuda_loss
 
     def build_generator(self):
         model = Autoencoder(20, self.data_size )
-        #model.summary()
-
-        #x = Input(shape=(self.data_size,))
-        #x_gen = model(x)
-        return model #Model(x, x_gen, name='generator')
-
-    def build_merge(self):
-        model = Sequential()
-        model.add(Lambda(lambda x: x))
+        return model
 
     def build_discriminator(self):
         model = Sequential()
@@ -149,6 +139,8 @@ class GAN():
         x2 = Input(shape=self.data_size)
         validity = model(x2)
         return Model(x2, validity, name='discriminator')
+####################
+
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
@@ -192,8 +184,9 @@ class GAN():
 
                 # Generate a batch of new images
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
-                gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
-                #self.latent2 = self.generator.latent_space(x2)
+                #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
+                gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
+                # #self.latent2 = self.generator.latent_space(x2)
 
 
                 # Train the discriminator
@@ -212,16 +205,17 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                #g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
-                g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
-                print(g_loss2)
+                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                #g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
+                #print(g_loss)
 
 
-                g_loss_list.append(g_loss2)
+                g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
+            #gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
+            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
             g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
