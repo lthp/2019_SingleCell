@@ -5,6 +5,7 @@ from sklearn.preprocessing import scale, minmax_scale
 from imblearn.over_sampling import RandomOverSampler
 imblearn_seed = 0
 np.random.seed(12345)
+import tensorflow as tf
 
 def loader(dataset_file_list, take_log, oversample, standardization, scaling):
     """ Read TPM data of a dataset saved in csv format
@@ -268,6 +269,28 @@ def pre_processing(dataset_file_list, pre_process_paras):
     dataset_list = intersect_dataset(dataset_list)  # retain intersection of gene symbols
     x1_train, x1_test, x2_train, x2_test = train_test(dataset_list, split)
     return x1_train, x1_test, x2_train, x2_test
+
+
+def make_mask(to_mask, positive_indices):
+    """Args:
+    to_mask: tensor that will be masked [n_samples , features]
+    positive_indices: a tensor with i sample indices for which the rows of the mask should be True
+    Returns:
+        mask: A copy of tensor to_mask with n-i rows set to zeros
+    """
+    mask = None
+    for i in np.arange(to_mask.shape[0]):
+        if i in positive_indices:
+            extend = tf.expand_dims(to_mask[i], 1)
+        else:
+            extend = tf.expand_dims(tf.constant(np.zeros(shape=to_mask.shape[1]), dtype='float64'), 1)
+        if mask is not None:
+            mask = tf.concat([mask, extend], axis=1)
+        else:
+            mask = extend
+    mask = tf.transpose(mask)
+    return mask
+
 
 if __name__ == '__main__':
     dataset_file_list = ['data/muraro_seurat.csv', 'data/baron_human_seurat.csv']

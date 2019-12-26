@@ -20,9 +20,9 @@ import sys
 sys.path.append("..")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
-from helpers_bermuda import pre_processing, read_cluster_similarity
+from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask
 from AE_bermuda import Autoencoder
-from MMD_bermuda import LossWeighter
+from MMD_bermuda import maximum_mean_discrepancy
 from tensorflow.keras.backend import equal, sum
 
 tf.keras.backend.set_floatx('float64')
@@ -39,13 +39,16 @@ class GAN():
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
         self.optimizer = Adam(0.0002, 0.5)
-
+        sigmas = [ 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 5, 10, 15, 20, 25, 30, 35, 100,
+      1e3, 1e4, 1e5, 1e6]
+        sigmas = tf.constant(sigmas, dtype = 'float64')
+        self.sigmas =(tf.expand_dims(sigmas, 1))
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
         x1_labels = Input(shape= (1), name='x1_labels')
         x2_labels = Input(shape= (1), name='x2_labels')
-
+        #ec = Input(Shape = (4, 20), name = 'extract_cluster')
 
         # Build the simple autoencoder1
         x = x1
@@ -84,7 +87,7 @@ class GAN():
         # Identity to transform to eager tensor
         x1_labels_lambda = Lambda(lambda x: x, name = 'x1_labels')(x1_labels)
         x2_labels_lambda = Lambda(lambda x: x, name = 'x2_labels')(x2_labels)
-
+        #ec_lambda = Lambda(lambda x: x, name = 'ec_lambda')(ec)
 
         def calculate_reconstruction_loss(y_true, y_pred):
             r_cost = tf.keras.losses.MSE(y_true, y_pred)
@@ -99,9 +102,18 @@ class GAN():
             for i, row in enumerate(self.cluster_pairs):
                 extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
                 extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
-                extract_latent1 = tf.gather_nd(code1, extract_cluster1)
-                extract_latent2 = tf.gather_nd(code2, extract_cluster2)
-                add_ = tf.math.add(tf.math.reduce_sum(extract_latent1) , tf.math.reduce_sum(extract_latent2))
+                #extract_latent1 = tf.gather_nd(code1, extract_cluster1)
+                #extract_latent2 = tf.gather_nd(code2, extract_cluster2)
+                onecluster_code1 = make_mask(code1, extract_cluster1)
+                onecluster_code2 = make_mask(code2, extract_cluster1)
+                add_ = maximum_mean_discrepancy(onecluster_code1, onecluster_code2, self.sigmas)
+
+
+
+
+                #add_ = tf.reduce_sum(extract_latent2)
+                add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
+
                 Loss = tf.math.add(add_, Loss)
             return Loss
 
@@ -225,7 +237,7 @@ class GAN():
 
 
                 # Generate a batch of new images
-                self.fullGenerator.fit([x1, x2, x1_labels, x2_labels] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
+                self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
                 #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
                 gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
