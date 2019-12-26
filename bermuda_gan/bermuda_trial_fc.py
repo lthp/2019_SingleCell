@@ -1,3 +1,5 @@
+'''Inspired from this code and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
+
 from __future__ import print_function, division
 
 from sklearn.model_selection import train_test_split
@@ -44,23 +46,48 @@ class GAN():
         x1_labels = Input(shape= (1), name='x1_labels')
         x2_labels = Input(shape= (1), name='x2_labels')
 
-        # Build and compile the discriminator
-        self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy',
-                                   optimizer=self.optimizer,
-                                   metrics=['accuracy'])
 
-        # Build the simple autoencoder
-        self.autoencoder = Autoencoder(20, self.data_size )
-        gen_x1, code1 = self.autoencoder(x1)#, x1_labels) # Will be reconstruction
-        gen_x2, code2 = self.autoencoder(x2) #, x2_labels)  # Will be reconstruction loss
+        # Build the simple autoencoder1
+        x = x1
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(alpha=0.2)(x)
 
+        x = BatchNormalization(momentum=0.8)(x)
+        x = Dense(20)(x)
+        x = LeakyReLU(alpha=0.2, name = 'code1_layer')(x)
+        code1 = x
 
-        # ['loss', 'autoencoder_loss', 'autoencoder_1_loss']
+        x = BatchNormalization(momentum=0.8)(x)
+        x = Dense(self.data_size)(x)
+        x = LeakyReLU(alpha=0.2)(x)
+
+        x = Activation('tanh', name = 'autoencoder_x1')(x)
+        gen_x1 = x
+
+        # Build the simple autoencoder2
+        x = x2
+        x = BatchNormalization(momentum=0.8)(x)
+        x = LeakyReLU(alpha=0.2)(x)
+
+        x = BatchNormalization(momentum=0.8)(x)
+        x = Dense(20)(x)
+        x = LeakyReLU(alpha=0.2, name = 'code2_layer')(x)
+        code2 = x
+
+        x = BatchNormalization(momentum=0.8)(x)
+        x = Dense(self.data_size)(x)
+        x = LeakyReLU(alpha=0.2)(x)
+
+        x = Activation('tanh', name = 'autoencoder_x2')(x)
+        gen_x2 = x
+
+        # Identity to transform to eager tensor
+        x1_labels_lambda = Lambda(lambda x: x, name = 'x1_labels')(x1_labels)
+        x2_labels_lambda = Lambda(lambda x: x, name = 'x2_labels')(x2_labels)
+
 
         def calculate_reconstruction_loss(y_true, y_pred):
-            r_cost = tf.keras.losses.MSE(y_true,
-                                         y_pred)  # todo: Keras already averages over all tensor values, this might be redundant
+            r_cost = tf.keras.losses.MSE(y_true, y_pred)
             return r_cost
 
         def reconstruction_loss(x1, gen_x1):
@@ -68,7 +95,14 @@ class GAN():
             return Loss
 
         def transfert_loss(x1, gen_x1):
-            Loss = sum(code1) - sum(code2) + sum(x1_labels) / 3
+            Loss = 0
+            for i, row in enumerate(self.cluster_pairs):
+                extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
+                extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
+                extract_latent1 = tf.gather_nd(code1, extract_cluster1)
+                extract_latent2 = tf.gather_nd(code2, extract_cluster2)
+                add_ = tf.math.add(tf.math.reduce_sum(extract_latent1) , tf.math.reduce_sum(extract_latent2))
+                Loss = tf.math.add(add_, Loss)
             return Loss
 
 
@@ -76,12 +110,15 @@ class GAN():
             Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
             return Loss
 
-        self.fullGenerator = Model(inputs=x1, outputs=gen_x1)
-        self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) # TRY WITH USUAL LOSS PAIRING
+        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=gen_x1)
+        self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
+                                   experimental_run_tf_function=False,
+                                   metrics=[transfert_loss,
+                                            reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
+
+
 
         # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-
-
         #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
             #name = 'full_generator')
             # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
@@ -102,15 +139,20 @@ class GAN():
         #
         #
 
+        # Build and compile the discriminator
+        self.discriminator = self.build_discriminator()
+        self.discriminator.compile(loss='binary_crossentropy',
+                                   optimizer=self.optimizer,
+                                   metrics=['accuracy'])
         # Build combined model
         self.discriminator.trainable = False
         # The discriminator takes generated data as input and determines validity
         validity = self.discriminator(gen_x1)
 
         self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
-        losses = {'autoencoder': 'mse', #TODO determine how the genertor is optimized there!!
+        losses = {'autoencoder_x1': 'mse', #TODO determine how the genertor is optimized there!!
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'autoencoder': 1,
+        loss_weights = {'autoencoder_x1': 1,
                         'discriminator': 0.1}
         metrics = {'discriminator': 'accuracy'}
         self.combined.compile(loss=losses, optimizer=self.optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
@@ -183,6 +225,7 @@ class GAN():
 
 
                 # Generate a batch of new images
+                self.fullGenerator.fit([x1, x2, x1_labels, x2_labels] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
                 #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
                 gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
