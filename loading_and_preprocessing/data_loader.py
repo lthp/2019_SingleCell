@@ -49,9 +49,9 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
     x1 = x1.loc[:, selected_cols]
     x2 = x2.loc[:, selected_cols]
     if n_cells_to_select > 0:
-        n_cells_to_select = np.min([n_cells_to_select,x1.shape[0], x2.shape[0]])
+        n_cells_to_select = np.min([n_cells_to_select, x1.shape[0], x2.shape[0]])
     else:
-        n_cells_to_select = np.min([x1.shape[0], x2.shape[0]])
+        n_cells_to_select = np.max([x1.shape[0], x2.shape[0]])  # upsample
     cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
     x1 = x1.iloc[cells_to_select, :]
     cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
@@ -96,8 +96,7 @@ def load_data_cytof(path, patient_id='rcc7', n=None, upsample=True):
         full_patient_batch2 = full_patient_batch2.iloc[:n, :]
 
     # y = full_patient_batch1["batch"]  # the label is batch1 (the reference batch)
-    x1 = full_patient_batch1.drop(["batch", 'cell', 'patient', 'metadata_panel'],
-                                  axis=1)  # remove all but the markers as the data
+    x1 = full_patient_batch1.drop(["batch", 'cell', 'patient', 'metadata_panel'], axis=1)  # remove all but the markers as the data
     x2 = full_patient_batch2.drop(["batch", 'cell', 'patient', 'metadata_panel'], axis=1)
     x1 = normalize(x1)
     x2 = normalize(x2)
