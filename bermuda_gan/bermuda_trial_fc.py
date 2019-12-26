@@ -43,6 +43,7 @@ class GAN():
       1e3, 1e4, 1e5, 1e6]
         sigmas = tf.constant(sigmas, dtype = 'float64')
         self.sigmas =(tf.expand_dims(sigmas, 1))
+        self.intermed_dim = 20
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
@@ -56,7 +57,7 @@ class GAN():
         x = LeakyReLU(alpha=0.2)(x)
 
         x = BatchNormalization(momentum=0.8)(x)
-        x = Dense(20)(x)
+        x = Dense(self.intermed_dim)(x)
         x = LeakyReLU(alpha=0.2, name = 'code1_layer')(x)
         code1 = x
 
@@ -73,7 +74,7 @@ class GAN():
         x = LeakyReLU(alpha=0.2)(x)
 
         x = BatchNormalization(momentum=0.8)(x)
-        x = Dense(20)(x)
+        x = Dense(self.intermed_dim)(x)
         x = LeakyReLU(alpha=0.2, name = 'code2_layer')(x)
         code2 = x
 
@@ -100,21 +101,31 @@ class GAN():
         def transfert_loss(x1, gen_x1):
             Loss = 0
             for i, row in enumerate(self.cluster_pairs):
-                extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
-                extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
+
+
+
+                #extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
                 #extract_latent1 = tf.gather_nd(code1, extract_cluster1)
                 #extract_latent2 = tf.gather_nd(code2, extract_cluster2)
-                onecluster_code1 = make_mask(code1, extract_cluster1)
-                onecluster_code2 = make_mask(code2, extract_cluster1)
-                add_ = maximum_mean_discrepancy(onecluster_code1, onecluster_code2, self.sigmas)
 
+                #mask1 = make_mask(code1, extract_cluster1 , 64) #TODO remove the batch size
+
+                extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
+                mask1 = tf.constant(np.ones(shape = (64 , 64)))
+                onecluster_code1 =  Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask1)),
+                                           name = 'onecluster_code1')(code1)
+
+                onecluster_code2 = Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask1)),
+                                          name='onecluster_code1')(code2)
+                add_ = maximum_mean_discrepancy(onecluster_code1, onecluster_code2, self.sigmas)
+                Loss = tf.math.add(add_, Loss)
 
 
 
                 #add_ = tf.reduce_sum(extract_latent2)
-                add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
+                #add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
 
-                Loss = tf.math.add(add_, Loss)
+
             return Loss
 
 

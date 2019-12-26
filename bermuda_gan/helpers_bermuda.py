@@ -271,19 +271,19 @@ def pre_processing(dataset_file_list, pre_process_paras):
     return x1_train, x1_test, x2_train, x2_test
 
 
-def make_mask(to_mask, positive_indices):
+def make_mask(to_mask, positive_indices, sample_size):
     """Args:
     to_mask: tensor that will be masked [n_samples , features]
     positive_indices: a tensor with i sample indices for which the rows of the mask should be True
     Returns:
-        mask: A copy of tensor to_mask with n-i rows set to zeros
+        A boolean tensor with i rows True and n-i rows false
     """
     mask = None
-    for i in np.arange(to_mask.shape[0]):
+    for i in np.arange(sample_size):
         if i in positive_indices:
-            extend = tf.expand_dims(to_mask[i], 1)
+            extend = tf.expand_dims(tf.constant(np.ones(shape=sample_size)), 1)
         else:
-            extend = tf.expand_dims(tf.constant(np.zeros(shape=to_mask.shape[1]), dtype='float64'), 1)
+            extend = tf.expand_dims(tf.constant(np.zeros(shape=sample_size)), 1)
         if mask is not None:
             mask = tf.concat([mask, extend], axis=1)
         else:
