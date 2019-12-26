@@ -20,7 +20,7 @@ import sys
 sys.path.append("..")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
-from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask
+from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
 from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
 from tensorflow.keras.backend import equal, sum
@@ -35,7 +35,7 @@ This model seems to be performing good.
 
 
 class GAN():
-    def __init__(self, n_markers=30, cluster_pairs = None):
+    def __init__(self, n_markers=30, cluster_pairs = None, n_clusters = None) :
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
         self.optimizer = Adam(0.0002, 0.5)
@@ -44,12 +44,15 @@ class GAN():
         sigmas = tf.constant(sigmas, dtype = 'float64')
         self.sigmas =(tf.expand_dims(sigmas, 1))
         self.intermed_dim = 20
+        self.n_clusters = n_clusters
+
+
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
         x1_labels = Input(shape= (1), name='x1_labels')
         x2_labels = Input(shape= (1), name='x2_labels')
-        #ec = Input(Shape = (4, 20), name = 'extract_cluster')
+        mask_clusters = Input(shape = (None, self.n_clusters + 1 ), dtype = 'float64')
 
         # Build the simple autoencoder1
         x = x1
@@ -88,7 +91,6 @@ class GAN():
         # Identity to transform to eager tensor
         x1_labels_lambda = Lambda(lambda x: x, name = 'x1_labels')(x1_labels)
         x2_labels_lambda = Lambda(lambda x: x, name = 'x2_labels')(x2_labels)
-        #ec_lambda = Lambda(lambda x: x, name = 'ec_lambda')(ec)
 
         def calculate_reconstruction_loss(y_true, y_pred):
             r_cost = tf.keras.losses.MSE(y_true, y_pred)
@@ -99,32 +101,25 @@ class GAN():
             return Loss
 
         def transfert_loss(x1, gen_x1):
+            # extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
+            # extract_latent1 = tf.gather_nd(code1, extract_cluster1)
+            # extract_latent2 = tf.gather_nd(code2, extract_cluster2)
+            # mask1 = make_mask(code1, extract_cluster1 , 64) #TODO remove the batch size
+            #  extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
+            # add_ = tf.reduce_sum(extract_latent2)
+            # add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
             Loss = 0
             for i, row in enumerate(self.cluster_pairs):
-
-
-
-                #extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
-                #extract_latent1 = tf.gather_nd(code1, extract_cluster1)
-                #extract_latent2 = tf.gather_nd(code2, extract_cluster2)
-
-                #mask1 = make_mask(code1, extract_cluster1 , 64) #TODO remove the batch size
-
-                extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
-                mask1 = tf.constant(np.ones(shape = (64 , 64)))
-                onecluster_code1 =  Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask1)),
+                cluster_idx1 = np.int(row[1])
+                cluster_idx2 = np.int(row[0])
+                mask_clusters_1 = Lambda(lambda x: x[:, :, cluster_idx1])(mask_clusters)
+                mask_clusters_2 = Lambda(lambda x: x[:, :, cluster_idx2])(mask_clusters)
+                code1_single =  Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask_clusters_1)),
                                            name = 'onecluster_code1')(code1)
-
-                onecluster_code2 = Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask1)),
+                code2_single = Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask_clusters_2)),
                                           name='onecluster_code1')(code2)
-                add_ = maximum_mean_discrepancy(onecluster_code1, onecluster_code2, self.sigmas)
+                add_ = maximum_mean_discrepancy(code1_single, code2_single, self.sigmas)
                 Loss = tf.math.add(add_, Loss)
-
-
-
-                #add_ = tf.reduce_sum(extract_latent2)
-                #add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
-
 
             return Loss
 
@@ -133,7 +128,7 @@ class GAN():
             Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
             return Loss
 
-        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=gen_x1)
+        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs=gen_x1)
         self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
                                    experimental_run_tf_function=False,
                                    metrics=[transfert_loss,
@@ -244,11 +239,11 @@ class GAN():
                 x2 = x2_train[idx2]
                 x1_labels = x1_train_df['cluster_labels'][idx1]
                 x2_labels = x2_train_df['cluster_labels'][idx2]
-                dummy_out = np.zeros((len(x1_labels),))
+                mask_clusters = make_mask_tensor(x1, x2, x1_labels, x2_labels)
 
 
                 # Generate a batch of new images
-                self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
+                self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
                 #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
                 gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
@@ -281,7 +276,7 @@ class GAN():
 
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
             #gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
-            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
+            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2, mask_clusters])
             g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
@@ -362,7 +357,7 @@ if __name__ == '__main__':
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr)
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
+    n_clusters = len(np.unique(x1_train['cluster_labels'])) + len(np.unique(x2_train['cluster_labels']))
 
-
-    gan = GAN(len(x1_train['gene_sym']), cluster_pairs) # n_markers
+    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = 21 ) #
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)

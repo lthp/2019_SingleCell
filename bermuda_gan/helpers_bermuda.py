@@ -271,7 +271,27 @@ def pre_processing(dataset_file_list, pre_process_paras):
     return x1_train, x1_test, x2_train, x2_test
 
 
-def make_mask(to_mask, positive_indices, sample_size):
+# def make_mask(to_mask, positive_indices, sample_size):
+#     """Args:
+#     to_mask: tensor that will be masked [n_samples , features]
+#     positive_indices: a tensor with i sample indices for which the rows of the mask should be True
+#     Returns:
+#         A boolean tensor with i rows True and n-i rows false
+#     """
+#     mask = None
+#     for i in np.arange(sample_size):
+#         if i in positive_indices:
+#             extend = tf.expand_dims(tf.constant(np.ones(shape=sample_size)), 1)
+#         else:
+#             extend = tf.expand_dims(tf.constant(np.zeros(shape=sample_size)), 1)
+#         if mask is not None:
+#             mask = tf.concat([mask, extend], axis=1)
+#         else:
+#             mask = extend
+#     mask = tf.transpose(mask)
+#     return mask
+
+def make_mask_np(to_mask, positive_indices):
     """Args:
     to_mask: tensor that will be masked [n_samples , features]
     positive_indices: a tensor with i sample indices for which the rows of the mask should be True
@@ -279,17 +299,31 @@ def make_mask(to_mask, positive_indices, sample_size):
         A boolean tensor with i rows True and n-i rows false
     """
     mask = None
-    for i in np.arange(sample_size):
+    for i in np.arange(to_mask.shape[0]):
         if i in positive_indices:
-            extend = tf.expand_dims(tf.constant(np.ones(shape=sample_size)), 1)
+            extend = np.ones(shape=(to_mask.shape[0], 1) )
         else:
-            extend = tf.expand_dims(tf.constant(np.zeros(shape=sample_size)), 1)
+            extend = np.zeros(shape=(to_mask.shape[0], 1) )
         if mask is not None:
-            mask = tf.concat([mask, extend], axis=1)
+            mask = np.concatenate([mask, extend], axis=1)
         else:
             mask = extend
-    mask = tf.transpose(mask)
+
     return mask
+
+def make_mask_tensor(x1, x2, x1_labels, x2_labels):
+    classes_ = len(np.unique(x1_labels)) + len(np.unique(x2_labels)) + 1
+    mask_tensor = np.empty(shape = (x1.shape[0],x1.shape[0],classes_))
+    for j in np.unique(x1_labels):
+        extract_cluster1 = np.where(x1_labels == j)[0]
+        mask_tensor[:, : , j] = make_mask_np(x1, extract_cluster1)
+    for j in np.unique(x2_labels):
+        extract_cluster2 = np.where(x2_labels == j)[0]
+        mask_tensor[:, :, j] = make_mask_np(x2, extract_cluster2)
+    return mask_tensor
+
+
+
 
 
 if __name__ == '__main__':
