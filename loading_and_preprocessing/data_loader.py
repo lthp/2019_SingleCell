@@ -28,7 +28,7 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
     if(panel is not None):
         df = df.loc[df['metadata_panel'].str.startswith(panel),:]
         # update batches names that are present in the panel
-        panel_batch_names = list(set(df.loc[:,'metadata_batch']))
+        panel_batch_names = list(df.loc[:,'metadata_batch'].unique())
         if(len([x for x in batch_names if x not in panel_batch_names])):
             batch_names = panel_batch_names
     # remove columns with ann (bcs of merging the panels)
