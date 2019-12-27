@@ -56,9 +56,8 @@ class GAN():
         # x = Dense(self.data_size)(x)
         x = Activation('tanh')(x)
 
-        x = Add()([x, x1])
+        # x = Add()([x, x1])
         return Model(x1, x)
-
 
     def build_generator(self):
         x1 = Input(shape=(self.data_size,))
@@ -97,7 +96,6 @@ class GAN():
         x2 = Input(shape=self.data_size)
         validity = model(x2)
         return Model(x2, validity)
-
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
