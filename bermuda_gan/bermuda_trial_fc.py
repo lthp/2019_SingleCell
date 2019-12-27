@@ -48,8 +48,6 @@ class GAN():
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
-        x1_labels = Input(shape= (1), name='x1_labels')
-        x2_labels = Input(shape= (1), name='x2_labels')
         mask_clusters = Input(shape = (None, self.n_clusters + 1 ), dtype = 'float64')
 
         # Build the simple autoencoder1
@@ -86,9 +84,6 @@ class GAN():
         x = Activation('tanh', name = 'autoencoder_x2')(x)
         gen_x2 = x
 
-        # Identity to transform to eager tensor
-        x1_labels_lambda = Lambda(lambda x: x, name = 'x1_labels')(x1_labels)
-        x2_labels_lambda = Lambda(lambda x: x, name = 'x2_labels')(x2_labels)
 
         def calculate_reconstruction_loss(y_true, y_pred):
             r_cost = tf.keras.losses.MSE(y_true, y_pred)
@@ -119,25 +114,25 @@ class GAN():
             Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
             return Loss
 
-        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs=gen_x1, name = 'fullGenerator')
-        # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
+        self.fullGenerator = Model(inputs=[x1, x2, mask_clusters], outputs=gen_x1, name = 'fullGenerator')
+        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
         #                            experimental_run_tf_function=False,
         #                            metrics=[transfert_loss,
         #                                     reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
 
-        # Build and compile the discriminator
+        #Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        #self.discriminator.compile(loss='binary_crossentropy',
-        #                           optimizer=self.optimizer,
-        #                           metrics=['accuracy'])
+        self.discriminator.compile(loss='binary_crossentropy',
+                                   optimizer=self.optimizer,
+                                   metrics=['accuracy'])
         # Build combined model
         self.discriminator.trainable = False
         # The discriminator takes generated data as input and determines validity
 
-        outputs = self.discriminator(self.fullGenerator([x1, x2, x1_labels, x2_labels, mask_clusters]))
+        outputs = self.discriminator(self.fullGenerator([x1, x2, mask_clusters]))
         #validity = self.discriminator(gen_x1)
 
-        self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs= [gen_x1, outputs]) #passes the gen_x1 output into validity
+        self.combined = Model(inputs=[x1, x2, mask_clusters], outputs= [gen_x1, outputs]) #passes the gen_x1 output into validity
 
         losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
@@ -148,7 +143,7 @@ class GAN():
                                             reconstruction_loss]}
         self.combined.compile(loss=losses, optimizer=self.optimizer,
                               loss_weights=loss_weights, metrics=metrics,
-                              experimental_run_tf_function=False) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
+                              experimental_run_tf_function=False)
 
     ##############################################
 
@@ -187,8 +182,6 @@ class GAN():
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
-        all_labels1 = x1_train_df['cluster_labels']
-        all_labels2 = x2_train_df['cluster_labels']
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
@@ -218,11 +211,7 @@ class GAN():
 
 
                 # Generate a batch of new images
-                #self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
-                #gen_x1, _, _, _ = self.generator.predict(x1, x2)
-                #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
-                gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels, mask_clusters])
-                # #self.latent2 = self.generator.latent_space(x2)
+                gen_x1 = self.fullGenerator.predict([x1, x2, mask_clusters])
 
 
                 # Train the discriminator
@@ -241,18 +230,14 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
-                #g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
-                #print(g_loss)
+                g_loss = self.combined.train_on_batch([x1, x2, mask_clusters], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
 
 
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
-            #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            #gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
-            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2, mask_clusters])
-            g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2, mask_clusters], [x1_train, valid_full]) #
+            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, mask_clusters])
+            g_loss = self.combined.test_on_batch([x1_train, x2_train, mask_clusters], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             # g_loss = np.mean(g_loss_list, axis=0)

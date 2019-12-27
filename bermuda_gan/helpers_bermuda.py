@@ -313,6 +313,7 @@ def make_mask_np(to_mask, positive_indices):
 
 def make_mask_tensor(x1, x2, x1_labels, x2_labels):
     classes_ = len(np.unique(x1_labels)) + len(np.unique(x2_labels)) + 1
+    print(classes_)
     mask_tensor = np.empty(shape = (x1.shape[0],x1.shape[0],classes_))
     for j in np.unique(x1_labels):
         extract_cluster1 = np.where(x1_labels == j)[0]
