@@ -1,0 +1,79 @@
+
+
+###### OPTION 1:
+
+
+class GAN():
+  def __init__(self, n_markers=30, cluster_pairs=None, n_clusters=None):
+   ### MODEL FUNCTIONAL: CAN BE MOVED IN A BUILD FUNCTION TOO AS LONG AS THE OUTPUTS ARE THERE
+   ### OPTIONAL: MODEL SEQUENTIAL, THE STUFF BELOW CAN PROBABLY BE REPLACED BY ( gen_x1 = self.encoder(x1)
+   x1 = Input(shape=(self.data_size,), name='x1')
+   x2 = Input(shape=(self.data_size,), name='x2')
+   x1_labels = Input(shape=(1), name='x1_labels')
+   x2_labels = Input(shape=(1), name='x2_labels')
+   mask_clusters = Input(shape=(None, self.n_clusters + 1), dtype='float64')
+
+   # Build the simple autoencoder1
+   x = x1
+   x = BatchNormalization(momentum=0.8)(x)
+   x = LeakyReLU(alpha=0.2)(x)
+
+   x = BatchNormalization(momentum=0.8)(x)
+   x = Dense(self.intermed_dim)(x)
+   x = LeakyReLU(alpha=0.2, name='code1_layer')(x)
+   code1 = x
+
+   x = BatchNormalization(momentum=0.8)(x)
+   x = Dense(self.data_size)(x)
+   x = LeakyReLU(alpha=0.2)(x)
+
+   x = Activation('tanh', name='autoencoder_x1')(x)
+   gen_x1 = x
+
+
+   validity = self.discriminator(gen_x1)
+   ### IF COMPLAINS ABOUT VALIDITY, MOVE IT TO FUNCTIONAL. IN MY CASE I DID NOT SEE THE NEED
+
+
+   ### CHECK THE BETWEEN FUNCTION
+   class Between(Constraint):
+     def __init__(self, min_value, max_value):
+       self.min_value = min_value
+       self.max_value = max_value
+
+     def __call__(self, w):
+       return K.clip(w, self.min_value, self.max_value)
+
+     def get_config(self):
+       return {'min_value': self.min_value,
+               'max_value': self.max_value}
+
+   def autoencoderloss(x):
+     true, pred = x
+     loss = binary_crossentropy(true, pred)
+     return K.mean(loss, axis=[1, 2])
+
+   def discriminatorloss(x):
+     true, pred = x
+     return binary_crossentropy(true, pred)
+
+   def reconstruction_loss(x1, gen_x1):
+     ### ADD your custom keras layer
+     weight = tf.keras.layers.Layer(name='loss_weight',
+                                   shape=(1,),
+                                   initializer=tensorflow.keras.initializers.Constant(0.5),
+                                   constraint=Between(0, 1),
+                                   trainable=True)
+
+
+      Loss = weight * autoencoderloss([x1, gen_x1]) + ((1-self.weight)*discriminatorloss([x1, gen_x1]) ) #check discriminator loss
+      return Loss
+
+   self.combined = Model(inputs=x1, outputs=[gen_x1, validity])
+   self.combined.compile(loss=reconstruction_loss, optimizer=self.optimizer,
+                               metrics=[autoencoderloss, discriminatorloss],
+                              experimental_run_tf_function=False)
+
+
+### OPTION 2 : Very annoying. I got it run though at some point
+###  https://stackoverflow.com/questions/53707199/keras-combining-two-losses-with-adjustable-weights-where-the-outputs-do-not-have

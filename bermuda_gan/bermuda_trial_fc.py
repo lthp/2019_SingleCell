@@ -46,8 +46,6 @@ class GAN():
         self.intermed_dim = 20
         self.n_clusters = n_clusters
 
-
-
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
         x1_labels = Input(shape= (1), name='x1_labels')
@@ -101,13 +99,6 @@ class GAN():
             return Loss
 
         def transfert_loss(x1, gen_x1):
-            # extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
-            # extract_latent1 = tf.gather_nd(code1, extract_cluster1)
-            # extract_latent2 = tf.gather_nd(code2, extract_cluster2)
-            # mask1 = make_mask(code1, extract_cluster1 , 64) #TODO remove the batch size
-            #  extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
-            # add_ = tf.reduce_sum(extract_latent2)
-            # add_ = maximum_mean_discrepancy(code1, code2, self.sigmas)
             Loss = 0
             for i, row in enumerate(self.cluster_pairs):
                 cluster_idx1 = np.int(row[1])
@@ -128,34 +119,11 @@ class GAN():
             Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
             return Loss
 
-        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs=gen_x1)
-        self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
-                                   experimental_run_tf_function=False,
-                                   metrics=[transfert_loss,
-                                            reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
-
-
-
-        # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-        #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
-            #name = 'full_generator')
-            # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-
-
-            #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
-         #                          name='full_generator')
-        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-
-
-        # # Build the full generator - Trainable
-        # self.LossWeighter = LossWeighter( code1, x1_labels, code2, x2_labels, self.cluster_pairs)
-        # reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
-        # reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
-        # weightedLoss = self.LossWeighter([reconstr_loss1, reconstr_loss2])
-        # self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
-        # self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
-        #
-        #
+        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs=gen_x1, name = 'fullGenerator')
+        # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
+        #                            experimental_run_tf_function=False,
+        #                            metrics=[transfert_loss,
+        #                                     reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
@@ -165,15 +133,22 @@ class GAN():
         # Build combined model
         self.discriminator.trainable = False
         # The discriminator takes generated data as input and determines validity
-        validity = self.discriminator(gen_x1)
 
-        self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
-        losses = {'autoencoder_x1': 'mse', #TODO determine how the genertor is optimized there!!
+        outputs = self.discriminator(self.fullGenerator([x1, x2, x1_labels, x2_labels, mask_clusters]))
+        #validity = self.discriminator(gen_x1)
+
+        self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels, mask_clusters], outputs= [gen_x1, outputs]) #passes the gen_x1 output into validity
+
+        losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
         loss_weights = {'autoencoder_x1': 1,
                         'discriminator': 0.1}
-        metrics = {'discriminator': 'accuracy'}
-        self.combined.compile(loss=losses, optimizer=self.optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
+        metrics = {'discriminator': 'accuracy',
+                   'autoencoder_x1': [transfert_loss,
+                                            reconstruction_loss]}
+        self.combined.compile(loss=losses, optimizer=self.optimizer,
+                              loss_weights=loss_weights, metrics=metrics,
+                              experimental_run_tf_function=False) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
 
     ##############################################
 
@@ -243,10 +218,10 @@ class GAN():
 
 
                 # Generate a batch of new images
-                self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
+                #self.fullGenerator.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
                 #gen_x1, _, _, _ = self.generator.predict(x1, x2)
                 #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
-                gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
+                gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels, mask_clusters])
                 # #self.latent2 = self.generator.latent_space(x2)
 
 
@@ -266,7 +241,7 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels, mask_clusters], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
                 #g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
                 #print(g_loss)
 
@@ -277,7 +252,7 @@ class GAN():
             #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
             #gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
             gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2, mask_clusters])
-            g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
+            g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2, mask_clusters], [x1_train, valid_full]) #
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             # g_loss = np.mean(g_loss_list, axis=0)
