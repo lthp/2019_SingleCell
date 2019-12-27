@@ -24,7 +24,7 @@ from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_t
 from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
 from tensorflow.keras.backend import equal, sum
-
+from sklearn.model_selection import StratifiedShuffleSplit
 tf.keras.backend.set_floatx('float64')
 
 '''
@@ -33,6 +33,7 @@ the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and ha
 This model seems to be performing good.
 '''
 
+seed = 12345
 
 class GAN():
     def __init__(self, n_markers=30, cluster_pairs = None, n_clusters = None) :
@@ -182,6 +183,8 @@ class GAN():
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
+        x1_labels = x1_train_df['cluster_labels']
+        x2_labels = x2_train_df['cluster_labels']
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
@@ -192,23 +195,28 @@ class GAN():
         d_loss = [0, 0]
 
         steps_per_epoch = max(len(x1_train), len(x2_train)) // batch_size
+        percent = batch_size / x1_train.shape[0]
+        sss = StratifiedShuffleSplit(n_splits=steps_per_epoch, train_size=percent, random_state=12345)
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
-            for step in range(steps_per_epoch):
+            train_generator_x1 = sss.split(x1_train, x1_labels)
+            train_generator_x2 = sss.split(x2_train, x2_labels)
+            for (gener_idx1, gener_idx2) in zip(train_generator_x1, train_generator_x2):
                 # ---------------------
                 #  Train Discriminator
                 # ---------------------
 
                 # Select a random batch of x1 and x2 #TODO: Implement a stratified sampling between the batches
-                idx1 = np.random.randint(0, x1_train.shape[0], batch_size)
-                idx2 = np.random.randint(0, x2_train.shape[0], batch_size)
+                idx1 = gener_idx1[0]
+                idx2 = gener_idx2[0]
                 x1 = x1_train[idx1]
                 x2 = x2_train[idx2]
-                x1_labels = x1_train_df['cluster_labels'][idx1]
-                x2_labels = x2_train_df['cluster_labels'][idx2]
-                mask_clusters = make_mask_tensor(x1, x2, x1_labels, x2_labels)
-
+                x1_lab = x1_labels[idx1]
+                x2_lab = x2_labels[idx2]
+                mask_clusters = make_mask_tensor(x1, x2, x1_lab, x2_lab)
+                assert(x1.shape[0] ==  batch_size)
+                assert (x2.shape[0] == batch_size)
 
                 # Generate a batch of new images
                 gen_x1 = self.fullGenerator.predict([x1, x2, mask_clusters])
