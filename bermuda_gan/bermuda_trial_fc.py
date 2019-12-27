@@ -127,9 +127,9 @@ class GAN():
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy',
-                                   optimizer=self.optimizer,
-                                   metrics=['accuracy'])
+        #self.discriminator.compile(loss='binary_crossentropy',
+        #                           optimizer=self.optimizer,
+        #                           metrics=['accuracy'])
         # Build combined model
         self.discriminator.trainable = False
         # The discriminator takes generated data as input and determines validity
@@ -325,9 +325,9 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
     pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True, 'split':0.80}
-    path_data1_clusters = '../bermuda_original_code/pancreas/baron_seurat.csv'
-    path_data2_clusters = '../bermuda_original_code/pancreas/muraro_seurat.csv'
-    cluster_similarity_file =  '../bermuda_original_code/pancreas/pancreas_metaneighbor.csv'
+    path_data1_clusters = '../bermuda_original_code_/pancreas/baron_seurat.csv'
+    path_data2_clusters = '../bermuda_original_code_/pancreas/muraro_seurat.csv'
+    cluster_similarity_file =  '../bermuda_original_code_/pancreas/pancreas_metaneighbor.csv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr)
