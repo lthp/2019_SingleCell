@@ -11,7 +11,7 @@ def normalize(x):
 
 
 def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'], 
-                    panel=None, seed=42, n_cells_to_select=0, test_size=0.2):
+                    panel=None, seed=42, n_cells_to_select=0, test_size=0.2, upsample=True):
     """
     Function to load data and split into 2 inputs with train and test sets
     inputs:
@@ -48,14 +48,15 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
     selected_cols = [col for col in df.columns if "metadata" not in col]
     x1 = x1.loc[:, selected_cols]
     x2 = x2.loc[:, selected_cols]
-    if n_cells_to_select > 0:
+    if n_cells_to_select > 0:  # Downsample
         n_cells_to_select = np.min([n_cells_to_select, x1.shape[0], x2.shape[0]])
-    else:
-        n_cells_to_select = np.max([x1.shape[0], x2.shape[0]])  # upsample
-    cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
-    x1 = x1.iloc[cells_to_select, :]
-    cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
-    x2 = x2.iloc[cells_to_select, :]
+        x1 = x1.sample(n=n_cells_to_select, replace=False)
+        x2 = x2.sample(n=n_cells_to_select, replace=False)
+    if upsample:
+        if x1.shape[0] < x2.shape[0]:
+            x1 = x1.sample(n=x2.shape[0], replace=True)
+        elif x2.shape[0] < x1.shape[0]:
+            x2 = x1.sample(n=x1.shape[0], replace=True)
     x1 = normalize(x1)
     x2 = normalize(x2)
     x1_train, x1_test = train_test_split(x1, test_size=test_size, random_state=seed)
