@@ -207,7 +207,7 @@ class GAN():
                 #  Train Discriminator
                 # ---------------------
 
-                # Select a random batch of x1 and x2 #TODO: Implement a stratified sampling between the batches
+                # Select a random batch of x1 and x2
                 idx1 = gener_idx1[0]
                 idx2 = gener_idx2[0]
                 x1 = x1_train[idx1]
@@ -244,15 +244,28 @@ class GAN():
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
+            print('epoch start')
+            mask_clusters = make_mask_tensor(x1_train, x2_train, x1_labels, x2_labels)
+            print('made mask')
             gen_x1 = self.fullGenerator.predict([x1_train, x2_train, mask_clusters])
+            print('made generator predict')
             g_loss = self.combined.test_on_batch([x1_train, x2_train, mask_clusters], [x1_train, valid_full]) #
+            print('made combined test on batch ')
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
+            print('made discriminator test on batch')
             # g_loss = np.mean(g_loss_list, axis=0)
             # d_loss = np.mean(d_loss_list, axis=0)
             # Plot the progress
-            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
-                  (epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
+            #print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
+            #      (epoch, d_loss[0], 100 * d_loss[1],
+            #       g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
+            print("/n /n ")
+            for value, item in zip(g_loss, self.combined.metrics_names):
+                print("Combined: {} = {}".format(item, value))
+
+            for value, item in zip(d_loss, self.discriminator.metrics_names):
+                print("Discriminator: {} = {}".format(item, value))
 
             plot_model["epoch"].append(epoch)
             plot_model["d_loss"].append(d_loss[0])

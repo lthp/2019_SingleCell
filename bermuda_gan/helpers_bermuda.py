@@ -298,16 +298,17 @@ def make_mask_np(to_mask, positive_indices):
     Returns:
         A boolean tensor with i rows True and n-i rows false
     """
-    mask = None
-    for i in np.arange(to_mask.shape[0]):
-        if i in positive_indices:
-            extend = np.ones(shape=(to_mask.shape[0], 1) )
-        else:
-            extend = np.zeros(shape=(to_mask.shape[0], 1) )
-        if mask is not None:
-            mask = np.concatenate([mask, extend], axis=1)
-        else:
-            mask = extend
+    mask = np.zeros((to_mask.shape[0], to_mask.shape[0]))
+    mask[:, list(positive_indices)] = 1
+    # for i in np.arange(to_mask.shape[0]):
+    #     if i in positive_indices:
+    #         extend = np.ones(shape=(to_mask.shape[0], 1) )
+    #     else:
+    #         extend = np.zeros(shape=(to_mask.shape[0], 1) )
+    #     if mask is not None:
+    #         mask = np.concatenate([mask, extend], axis=1)
+    #     else:
+    #         mask = extend
 
     return mask
 

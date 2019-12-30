@@ -34,15 +34,16 @@ read_dataset <- function(filename) {
 # data_seurat: a Seurat object with clustering results
 seurat_preprocessing <- function(dataset, dataset_name) {
   data_seurat = CreateSeuratObject(raw.data = dataset$data, project = dataset_name, min.cells = 5)
-  data_seurat@meta.data$sample_labels = dataset$sample_labels
-  data_seurat@meta.data$cell_labels = dataset$cell_labels
+  maxdim = dim(data_seurat@raw.data)[2]
+  data_seurat@meta.data$sample_labels = dataset$sample_labels[1:maxdim]
+  data_seurat@meta.data$cell_labels = dataset$cell_labels[1:maxdim]
   data_seurat = NormalizeData(data_seurat, display.progress = FALSE)
   data_seurat = FindVariableGenes(data_seurat, do.plot = F, display.progress = FALSE)
   data_seurat <- ScaleData(data_seurat, display.progress = FALSE)
-  data_seurat = RunPCA(object = data_seurat, pc.genes = data_seurat@var.genes, do.print = F)
-  data_seurat <- FindClusters(data_seurat, reduction.type = "pca", resolution = 0.6, dims.use = 1:20,
-                              print.output = 0)
-  data_seurat <- RunTSNE(data_seurat, dims.use = 1:20, do.fast = T, check_duplicates = FALSE)
+ # data_seurat = RunPCA(object = data_seurat, pc.genes = data_seurat@var.genes, do.print = F)
+ # data_seurat <- FindClusters(data_seurat, reduction.type = "pca", resolution = 0.6, dims.use = 1:20,
+ #                           print.output = 0)
+ # data_seurat <- RunTSNE(data_seurat, dims.use = 1:20, do.fast = T, check_duplicates = FALSE)
   
   return (data_seurat)
 }
