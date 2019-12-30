@@ -21,7 +21,8 @@ the generator autoencoder is diamond shaped (not with a bottleneck layer) AND ha
 
 
 class GAN():
-    def __init__(self, n_markers=30):
+    def __init__(self, modelname, n_markers=30):
+        self.modelname = modelname
         self.data_size = n_markers
         optimizer = Adam(0.0002, 0.5)
 
@@ -105,11 +106,11 @@ class GAN():
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        os.makedirs(os.path.join('figures_residual_gan', fname))
-        os.makedirs(os.path.join('output_residual_gan', fname))
-        os.makedirs(os.path.join('models_residual_gan', fname))
+        os.makedirs(os.path.join('figures_' + self.modelname, fname))
+        os.makedirs(os.path.join('output_' + self.modelname, fname))
+        os.makedirs(os.path.join('models_' + self.modelname, fname))
 
-        plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
+        training_metrics = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
 
         x1_train = x1_train_df.values
@@ -119,11 +120,12 @@ class GAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
-        valid_full = np.ones((len(x1_train), 1))
-        fake_full = np.zeros((len(x1_train), 1))
+        valid_full_x1 = np.ones((len(x1_train), 1))
+        fake_full_x1 = np.zeros((len(x1_train), 1))
+        valid_full_x2 = np.ones((len(x2_train), 1))
         d_loss = [0, 0]
 
-        steps_per_epoch = len(x1_train) // batch_size
+        steps_per_epoch = np.max([x1_train.shape[0], x2_train.shape[0]]) // batch_size
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
@@ -133,9 +135,10 @@ class GAN():
                 # ---------------------
 
                 # Select a random batch of x1 and x2
-                idx = np.random.randint(0, x1_train.shape[0], batch_size)
-                x1 = x1_train[idx]
-                x2 = x2_train[idx]
+                idx1 = np.random.randint(0, x1_train.shape[0], batch_size)
+                x1 = x1_train[idx1]
+                idx2 = np.random.randint(0, x2_train.shape[0], batch_size)
+                x2 = x2_train[idx2]
 
                 # Generate a batch of new images
                 gen_x1 = self.generator.predict(x1)
@@ -162,48 +165,47 @@ class GAN():
                 d_loss_list.append(d_loss)
 
             gen_x1 = self.generator.predict(x1_train)
-            g_loss = self.combined.test_on_batch(x1_train, [x1_train, valid_full])
+            g_loss = self.combined.test_on_batch(x1_train, [x1_train, valid_full_x1])
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
-                                                      np.concatenate((valid_full, fake_full)))
+                                                      np.concatenate((valid_full_x2, fake_full_x1)))
             # g_loss = np.mean(g_loss_list, axis=0)
             # d_loss = np.mean(d_loss_list, axis=0)
             # Plot the progress
             print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
                   (epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100), flush=True)
 
-            plot_model["epoch"].append(epoch)
-            plot_model["d_loss"].append(d_loss[0])
-            plot_model["g_loss"].append(g_loss[2])
+            training_metrics["epoch"].append(epoch)
+            training_metrics["d_loss"].append(d_loss[0])
+            training_metrics["g_loss"].append(g_loss[2])
 
-            plot_model["d_accuracy"].append(d_loss[1])
-            plot_model["g_accuracy"].append(g_loss[3])
+            training_metrics["d_accuracy"].append(d_loss[1])
+            training_metrics["g_accuracy"].append(g_loss[3])
 
-            plot_model["g_reconstruction_error"].append(g_loss[1])
-            plot_model["g_loss_total"].append(g_loss[0])
+            training_metrics["g_reconstruction_error"].append(g_loss[1])
+            training_metrics["g_loss_total"].append(g_loss[0])
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
-                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_residual_gan')
-                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_residual_gan')
-                save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False,
-                                         dir_name='figures_residual_gan')
-        return plot_model
+                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
+                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_'+self.modelname)
+                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname, dir_name='output_'+self.modelname)
+                #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname, umap=True,
+                #                         dir_name='figures_'+self.modelname, autoencoder=True, modelname=self.modelname)
 
 
 if __name__ == '__main__':
     import os
-    from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
-    path = r'C:\Users\heida\Documents\ETH\Deep Learning\chevrier_data_pooled_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch2'],
-                                                           seed=42, panel='tcell')
-    # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
+    from loading_and_preprocessing.data_loader import load_data_basic
+    path = '/cluster/home/hthrainsson/chevrier_data_pooled_full_panels.parquet'
+    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\chevrier_data_pooled_full_panels.parquet'
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
+                                                           seed=42, panel=None, upsample=True)
+    gan = GAN('residual_gan_autoencoder_full_panels', x1_train.shape[1])
+    gan.train(x1_train, x2_train, epochs=600, batch_size=64, sample_interval=25)
 
-    # path = r'C:\Users\Public\PycharmProjects\deep\2019_DL_Class\loading_and_preprocessing'
-    # path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
-    # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
-    # seed=42, n_cells_to_select=0)
-    gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample10', batch_names=['batch1', 'batch3'],
+                                                           seed=42, panel=None, upsample=True)
+    gan = GAN('residual_gan_autoencoder_full_panels', x1_train.shape[1])
+    gan.train(x1_train, x2_train, epochs=600, batch_size=64, sample_interval=25)
