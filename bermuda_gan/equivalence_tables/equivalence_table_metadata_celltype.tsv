@@ -1,0 +1,11 @@
+original	bermuda
+B cells	0
+DC	1
+Granulocytes	2
+Myeloid cells	3
+NK cells	4
+Non immune cells	5
+Plasma cells	6
+T cells	7
+Unknown	8
+pDC	9

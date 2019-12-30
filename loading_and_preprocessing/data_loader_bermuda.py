@@ -36,10 +36,12 @@ def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_name
 
     # Remove columns with ann (bcs of merging the panels)
     df = df.dropna(axis=1)
+    df = df.reset_index(drop = True)
+
 
 
     # Replace the metadata with integers
-    metadata = [ 'metadata_phenograph' , 'metadata_celltype', 'metadata_sample']
+    metadata = [ 'metadata_sample', 'metadata_celltype', 'metadata_phenograph' ]
     equivalence_table = {}
     for field in metadata:
         equivalence_table[field] = {}
@@ -48,9 +50,13 @@ def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_name
             equivalence_table[field][j] = i
         eq = pd.DataFrame.from_dict(equivalence_table[field], orient='index').reset_index()
         eq.columns =  ['original', 'bermuda']
-        eq.to_csv(os.path.join(path_equivalence, 'equivalence_table_' + field + '.tsv'), sep = '\t', index = None, header = True )
+        if field not in 'metadata_phenograph':
+            eq.to_csv(os.path.join(path_equivalence, 'equivalence_table_' + field + '.tsv'), sep = '\t', index = None, header = True )
+        else:
+            cluster_tbl = eq
         if field == 'metadata_sample':
-            sample = eq.loc[eq['original'] == sample, 'bermuda']
+            sample = int(eq.loc[eq['original'] == sample, 'bermuda'])
+
 
 
     # Extract batches
@@ -66,17 +72,27 @@ def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_name
         x2_idx = [i for (i,t) in enumerate(idx) if t in x2_idx]
         x2 = df.loc[x2_idx, :].copy()
 
-    # remove metadata columns
     selected_cols = [col for col in df.columns if "metadata" not in col]
-    x1_mx = x1.loc[:, selected_cols]
-    x2_mx = x2.loc[:, selected_cols]
+    batch_dict = {batch_names[0]: x1, batch_names[1]: x2}
 
-    # Normalize
-    x1_mx = normalize(x1_mx)
-    x2_mx = normalize(x2_mx)
-    x1 = np.concatenate(x1_mx, x1.loc[:,metadata] )
-    x2 = np.concatenate(x1_mx, x2.loc[:,metadata] )
+    cluster_idx = 1
+    for batch_name, batch_values in batch_dict.items():
+        # Shift cluster names
+        cluster_labels = cluster_tbl.copy()
+        cluster_labels['bermuda'] = 'NaN'
+        clusters_uq = np.unique(batch_values['metadata_phenograph'])
+        for i, clu in enumerate(clusters_uq):
+            cluster_labels.loc[cluster_labels['original'] == float(clu), 'bermuda'] = i + cluster_idx
+        cluster_idx += len(clusters_uq)
+        cluster_labels.to_csv(os.path.join(path_equivalence, 'equivalence_table_' + 'metadata_phenograph_'+ batch_name + '.tsv'), sep='\t', index=None,
+                  header=True)
+        # remove metadata columns
+        x_mx = batch_values.loc[:, selected_cols]
+        x_mx = normalize(x_mx)
+        batch_values = pd.concat([batch_values.loc[:, metadata], x_mx], axis=1)
+        batch_values = batch_values.transpose()
+        batch_values.to_csv(os.path.join(os.path.dirname(path), 'chevrier_data_pooled_full_panels.' + batch_name  + '.bermuda' + '.tsv'), sep='\t', index=None,
+                  header=True)
 
-    x1 = x1.transpose()
-    x2 = x2.transpose()
+
     return x1, x2
