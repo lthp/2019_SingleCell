@@ -10,7 +10,7 @@ def normalize(x):
     return pd.DataFrame(data=data, columns=x.columns, index=x.index)
 
 
-def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'], 
+def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
                     panel=None, seed=42, n_cells_to_select=0, test_size=0.2):
     """
     Function to load data and split into 2 inputs with train and test sets
@@ -52,10 +52,13 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
         n_cells_to_select = np.min([n_cells_to_select, x1.shape[0], x2.shape[0]])
     else:
         n_cells_to_select = np.max([x1.shape[0], x2.shape[0]])  # upsample
-    cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
-    x1 = x1.iloc[cells_to_select, :]
-    cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
-    x2 = x2.iloc[cells_to_select, :]
+        # n_cells_to_select = np.min([x1.shape[0], x2.shape[0]])  # fix
+    if x1.shape[0] < n_cells_to_select:
+        cells_to_select = np.random.uniform(0, x1.shape[0], n_cells_to_select)
+        x1 = x1.iloc[cells_to_select, :]
+    if x2.shape[0] < n_cells_to_select:
+        cells_to_select = np.random.uniform(0, x2.shape[0], n_cells_to_select)
+        x2 = x2.iloc[cells_to_select, :]
     x1 = normalize(x1)
     x2 = normalize(x2)
     x1_train, x1_test = train_test_split(x1, test_size=test_size, random_state=seed)
