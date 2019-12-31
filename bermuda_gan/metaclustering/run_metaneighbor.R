@@ -1,5 +1,5 @@
-folder_name = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
-#folder_name='/cluster/work/grlab/projects/tmp_laurie/dl_data' 
+#folder_name = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
+folder_name='/cluster/work/grlab/projects/tmp_laurie/dl_data' 
 
 file = 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda.tsv'
 
@@ -13,19 +13,22 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   cell.labels=matrix(0,ncol=length(celltypes),nrow=dim(pheno)[1])
   rownames(cell.labels)=colnames(data)
   colnames(cell.labels)=celltypes
+  print("...prepare match")
   for(i in 1:length(celltypes)){
     type=celltypes[i]
     m<-match(pheno$Celltype,type)
-    cell.labels[!is.na(m),i]=1
+    cell.labels[!is.na(m),i]=1 # cell * clusters with hot encoding 
   }
-  
   m<-match(rownames(data),vargenes)
+  print("...run correlation")
   cor.dat=cor(data[!is.na(m),],method="s")
   rank.dat=cor.dat*0
-  rank.dat[]=rank(cor.dat,ties.method="average",na.last = "keep")
+  print("...run rank")
+  rank.dat[]=rank(cor.dat,ties.method="average",na.last = "keep") # cell* cell correlation item 
   rank.dat[is.na(rank.dat)]=0
   rank.dat=rank.dat/max(rank.dat)
   sumin    =  (rank.dat) %*% cell.labels
+  print('...run sum ranks')
   sumall   = matrix(apply(rank.dat,2,sum), ncol = dim(sumin)[2], nrow=dim(sumin)[1])
   predicts = sumin/sumall
   
@@ -33,6 +36,7 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   colnames(cell.NV)=colnames(cell.labels)
   rownames(cell.NV)=colnames(cell.labels)
   
+  print("... run predict")
   for(i in 1:dim(cell.labels)[2]){
     predicts.temp=predicts
     m<-match(pheno$Celltype,colnames(cell.labels)[i])
@@ -54,6 +58,7 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   }
   
   cell.NV=(cell.NV+t(cell.NV))/2
+  print("...metaneighbor done")
   return(cell.NV)
   
 }
@@ -75,7 +80,7 @@ pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph
                       stringsAsFactors=FALSE) # Length = all the cells of dataset 1 + dataset 2
 data = dataset[5:nrow(dataset), ]
 var_genes = rownames(data) 
-
+print("... data preprocessed")
 return(list(var_genes=var_genes, data=data, cluster_labels=cluster_labels, pheno=pheno))
 }
 
@@ -104,11 +109,13 @@ wrap_MetaNeighbor<-function(folder_name, file){
   cluster_similarity = cluster_similarity[,order(as.numeric(colnames(cluster_similarity)))]
   
   ### write out metaneighbor file
+  print("writing outputs to:")
   metaneighbor_file = paste(folder_name, paste0(folder_name, "_metaneighbor.csv"), sep="/")
+  print(metaneighbor_file)
   write.table(cluster_similarity, metaneighbor_file, sep = ",", quote = F, col.names = T, row.names = F)
 }
 
 
 
-
-
+### Run 
+wrap_MetaNeighbor(folder_name, file)
