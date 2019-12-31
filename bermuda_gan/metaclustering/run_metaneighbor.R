@@ -1,20 +1,20 @@
-library(arrow)
+
+
 folder_name = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
-file = 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda.csv'
+file = 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda.tsv'
 filename = paste(folder_name, file, sep="/")
 print(paste0("Dataset: ", filename))
 # Seurat
-dataset = read_parquet(filename)
-
-
-
+dataset = read.table(filename, sep = '\t', nrows = 10, header = F)
+rownames(dataset) = dataset[,1]
+dataset = dataset[,2:ncol(dataset)]
 
 
 # Metaneighbor
-cluster_labels = unique(unlist(cluster_label_list)) # Unique 1-21 
-rownames(data) = var_genes # Name of the genes or the markers
-pheno = as.data.frame(list(Celltype = as.character(unlist(cluster_label_list)),# cluster id 
-                           Study_ID = as.character(unlist(dataset_label_list))), # Cell type from pheno 
+cluster_labels = unique(as.integer(dataset["metadata_phenograph",])) # Unique 1-21 
+
+pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph",]),# cluster id 
+                           Study_ID =  as.character(dataset["dataset_label",])), #dataset label
                       stringsAsFactors=FALSE) # Length = all the cells of dataset 1 + dataset 2
 
 
@@ -22,7 +22,7 @@ wrap_MetaNeighbor<-function(var_genes, data, cluster_labels, pheno){
   # run metaneighbor
   
   #var_genes = rep(var_genes[1], 100)
-  cluster_similarity =run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
+  cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
   
   # set cluster pairs from the same dataset to 0
   for (i in 1:length(dataset_list)) {
