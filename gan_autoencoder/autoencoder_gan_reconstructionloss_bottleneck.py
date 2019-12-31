@@ -43,8 +43,8 @@ class GAN():
         self.combined = Model(inputs=x1, outputs=[gen_x1, validity])
         losses = {'generator': 'mean_absolute_error',
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'generator': 1,
-                        'discriminator': 0.1}
+        loss_weights = {'generator': 0.8,
+                        'discriminator': 0.2}
         metrics = {'discriminator': 'accuracy'}
         self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics)
 
@@ -85,7 +85,9 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
-        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        fname = '_ganautobottlebatch_loss0.8_full_upsample' + x1_train_df.index[0].split('.')[0]
+        fname = time + fname
         os.makedirs(os.path.join('figures_bottleneck', fname))
         os.makedirs(os.path.join('output_bottleneck', fname))
         os.makedirs(os.path.join('models_bottleneck', fname))
@@ -166,11 +168,10 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
+                # self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
-                save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False,
-                                         dir_name='figures_bottleneck')
+                # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, dir_name='figures_bottleneck')
 
         return plot_model
 
@@ -180,10 +181,11 @@ if __name__ == '__main__':
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
 
     # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
-    path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
+    # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
+    path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_full_panels.parquet'
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
+                                                           seed=42, panel=None)
     # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch2'],
-                                                           seed=42, panel='tcell')
 
     # path = os.getcwd()
     # path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
