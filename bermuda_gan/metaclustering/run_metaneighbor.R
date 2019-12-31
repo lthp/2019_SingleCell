@@ -1,9 +1,6 @@
-
-memory.limit(size = 100000)
 folder_name = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
 file = 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda.tsv'
-filename = paste(folder_name, file, sep="/")
-print(paste0("Dataset: ", filename))
+
 
 
 # Code from
@@ -59,8 +56,10 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   
 }
 
+preprocessing<-function(folder_name, file){
 
-
+filename = paste(folder_name, file, sep="/")
+print(paste0("Dataset: ", filename))
 
 # preprocessing
 dataset = read.table(filename, sep = '\t', header = F)
@@ -75,23 +74,34 @@ pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph
 data = dataset[5:nrow(dataset), ]
 var_genes = rownames(data) 
 
-wrap_MetaNeighbor<-function(var_genes, data, cluster_labels, pheno){
-  # run metaneighbor
+return(list(var_genes=var_genes, data=data, cluster_labels=cluster_labels, pheno=pheno))
+}
+
+
+
+####___________Main ___________####
+wrap_MetaNeighbor<-function(folder_name, file){
+  ### Preprocessing
+  inputs = preprocessing(folder_name, file)
+  var_genes=inputs$var_genes
+  data=inputs$data
+  cluster_labels=inputs$cluster_labels
+  pheno=inputs$pheno
   
-  #var_genes = rep(var_genes[1], 100)
+  ### run metaneighbor
   cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
   
-  # set cluster pairs from the same dataset to 0
+  ### set cluster pairs from the same dataset to 0
   for (i in 1:length(dataset_list)) {
     cluster_idx_tmp = unique(cluster_label_list[[i]])
     cluster_similarity[cluster_idx_tmp, cluster_idx_tmp] = 0
   }
   
-  # order rows and columns
+  ### order rows and columns
   cluster_similarity = cluster_similarity[order(as.numeric(rownames(cluster_similarity))),]
   cluster_similarity = cluster_similarity[,order(as.numeric(colnames(cluster_similarity)))]
   
-  # write out metaneighbor file
+  ### write out metaneighbor file
   metaneighbor_file = paste(folder_name, paste0(folder_name, "_metaneighbor.csv"), sep="/")
   write.table(cluster_similarity, metaneighbor_file, sep = ",", quote = F, col.names = T, row.names = F)
 }
