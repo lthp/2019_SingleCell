@@ -9,3 +9,5 @@
 */.Rproj.user
 */.Rhistory
 */.RData
+*/logs/*
+*.log

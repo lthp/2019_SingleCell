@@ -97,6 +97,7 @@ wrap_MetaNeighbor<-function(folder_name, file){
   
   ### run metaneighbor
   cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
+  print(cluster_similarityi[1:10, 1:10])
   
   ### set cluster pairs from the same dataset to 0
   for (i in 1:dim(unique(pheno["Study_ID"]))[1] ) {
