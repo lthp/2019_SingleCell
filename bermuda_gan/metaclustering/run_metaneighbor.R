@@ -99,9 +99,12 @@ wrap_MetaNeighbor<-function(folder_name, file){
   cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
   
   ### set cluster pairs from the same dataset to 0
-  for (i in 1:length(dataset_list)) {
-    cluster_idx_tmp = unique(cluster_label_list[[i]])
-    cluster_similarity[cluster_idx_tmp, cluster_idx_tmp] = 0
+  for (i in 1:dim(unique(pheno["Study_ID"]))[1] ) {
+    cluster_idx_tmp = as.integer(unique(pheno[pheno["Study_ID"] == i, "Celltype"])) #unique(cluster_label_list[[i]])
+    pos = match(cluster_idx_tmp, cluster_labels)
+    print(cluster_idx_tmp)
+    print(pos)
+    cluster_similarity[pos, pos] = 0
   }
   
   ### order rows and columns
@@ -110,9 +113,12 @@ wrap_MetaNeighbor<-function(folder_name, file){
   
   ### write out metaneighbor file
   print("writing outputs to:")
-  metaneighbor_file = paste(folder_name, paste0(folder_name, "_metaneighbor.csv"), sep="/")
+  splitted = strsplit(c(file), ".", fixed = T)
+  splitted = splitted[[1]]
+  base_name = paste( splitted[1:length(splitted) -1], collapse = '.')
+  metaneighbor_file = paste(folder_name, paste0(base_name, "_metaneighbor.tsv"), sep="/")
   print(metaneighbor_file)
-  write.table(cluster_similarity, metaneighbor_file, sep = ",", quote = F, col.names = T, row.names = F)
+  write.table(cluster_similarity, metaneighbor_file, sep = "\t", quote = F, col.names = T, row.names = F)
 }
 
 
