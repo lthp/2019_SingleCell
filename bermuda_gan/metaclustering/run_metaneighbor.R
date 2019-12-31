@@ -1,46 +1,9 @@
 
-
+memory.limit(size = 100000)
 folder_name = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
 file = 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda.tsv'
 filename = paste(folder_name, file, sep="/")
 print(paste0("Dataset: ", filename))
-# Seurat
-dataset = read.table(filename, sep = '\t', nrows = 10, header = F)
-rownames(dataset) = dataset[,1]
-dataset = dataset[,2:ncol(dataset)]
-
-
-# Metaneighbor
-cluster_labels = unique(as.integer(dataset["metadata_phenograph",])) # Unique 1-21 
-
-pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph",]),# cluster id 
-                           Study_ID =  as.character(dataset["dataset_label",])), #dataset label
-                      stringsAsFactors=FALSE) # Length = all the cells of dataset 1 + dataset 2
-
-
-wrap_MetaNeighbor<-function(var_genes, data, cluster_labels, pheno){
-  # run metaneighbor
-  
-  #var_genes = rep(var_genes[1], 100)
-  cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
-  
-  # set cluster pairs from the same dataset to 0
-  for (i in 1:length(dataset_list)) {
-    cluster_idx_tmp = unique(cluster_label_list[[i]])
-    cluster_similarity[cluster_idx_tmp, cluster_idx_tmp] = 0
-  }
-  
-  # order rows and columns
-  cluster_similarity = cluster_similarity[order(as.numeric(rownames(cluster_similarity))),]
-  cluster_similarity = cluster_similarity[,order(as.numeric(colnames(cluster_similarity)))]
-  
-  # write out metaneighbor file
-  metaneighbor_file = paste(folder_name, paste0(folder_name, "_metaneighbor.csv"), sep="/")
-  write.table(cluster_similarity, metaneighbor_file, sep = ",", quote = F, col.names = T, row.names = F)
-}
-
-
-
 
 
 # Code from
@@ -95,3 +58,45 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   return(cell.NV)
   
 }
+
+
+
+
+# preprocessing
+dataset = read.table(filename, sep = '\t', header = F)
+rownames(dataset) = dataset[,1]
+dataset = dataset[,2:ncol(dataset)]
+
+cluster_labels = unique(as.integer(dataset["metadata_phenograph",])) # Unique 1-21 
+
+pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph",]),# cluster id 
+                           Study_ID =  as.character(dataset["dataset_label",])), #dataset label
+                      stringsAsFactors=FALSE) # Length = all the cells of dataset 1 + dataset 2
+data = dataset[5:nrow(dataset), ]
+var_genes = rownames(data) 
+
+wrap_MetaNeighbor<-function(var_genes, data, cluster_labels, pheno){
+  # run metaneighbor
+  
+  #var_genes = rep(var_genes[1], 100)
+  cluster_similarity = run_MetaNeighbor_US(var_genes, data, cluster_labels, pheno)
+  
+  # set cluster pairs from the same dataset to 0
+  for (i in 1:length(dataset_list)) {
+    cluster_idx_tmp = unique(cluster_label_list[[i]])
+    cluster_similarity[cluster_idx_tmp, cluster_idx_tmp] = 0
+  }
+  
+  # order rows and columns
+  cluster_similarity = cluster_similarity[order(as.numeric(rownames(cluster_similarity))),]
+  cluster_similarity = cluster_similarity[,order(as.numeric(colnames(cluster_similarity)))]
+  
+  # write out metaneighbor file
+  metaneighbor_file = paste(folder_name, paste0(folder_name, "_metaneighbor.csv"), sep="/")
+  write.table(cluster_similarity, metaneighbor_file, sep = ",", quote = F, col.names = T, row.names = F)
+}
+
+
+
+
+
