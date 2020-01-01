@@ -20,11 +20,11 @@ import sys
 sys.path.append("..")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
-from helpers_bermuda import pre_processing, read_cluster_similarity
+from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
 from AE_bermuda import Autoencoder
-from MMD_bermuda import LossWeighter
+from MMD_bermuda import maximum_mean_discrepancy
 from tensorflow.keras.backend import equal, sum
-
+from sklearn.model_selection import StratifiedShuffleSplit
 tf.keras.backend.set_floatx('float64')
 
 '''
@@ -33,19 +33,23 @@ the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and ha
 This model seems to be performing good.
 '''
 
+seed = 12345
 
 class GAN():
-    def __init__(self, n_markers=30, cluster_pairs = None):
+    def __init__(self, n_markers=30, cluster_pairs = None, n_clusters = None) :
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
         self.optimizer = Adam(0.0002, 0.5)
-
+        sigmas = [ 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1, 5, 10, 15, 20, 25, 30, 35, 100,
+      1e3, 1e4, 1e5, 1e6]
+        sigmas = tf.constant(sigmas, dtype = 'float64')
+        self.sigmas =(tf.expand_dims(sigmas, 1))
+        self.intermed_dim = 20
+        self.n_clusters = n_clusters
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
         x2 = Input(shape=(self.data_size,), name = 'x2')
-        x1_labels = Input(shape= (1), name='x1_labels')
-        x2_labels = Input(shape= (1), name='x2_labels')
-
+        mask_clusters = Input(shape = (None, self.n_clusters + 1 ), dtype = 'float64')
 
         # Build the simple autoencoder1
         x = x1
@@ -53,7 +57,7 @@ class GAN():
         x = LeakyReLU(alpha=0.2)(x)
 
         x = BatchNormalization(momentum=0.8)(x)
-        x = Dense(20)(x)
+        x = Dense(self.intermed_dim)(x)
         x = LeakyReLU(alpha=0.2, name = 'code1_layer')(x)
         code1 = x
 
@@ -70,7 +74,7 @@ class GAN():
         x = LeakyReLU(alpha=0.2)(x)
 
         x = BatchNormalization(momentum=0.8)(x)
-        x = Dense(20)(x)
+        x = Dense(self.intermed_dim)(x)
         x = LeakyReLU(alpha=0.2, name = 'code2_layer')(x)
         code2 = x
 
@@ -80,10 +84,6 @@ class GAN():
 
         x = Activation('tanh', name = 'autoencoder_x2')(x)
         gen_x2 = x
-
-        # Identity to transform to eager tensor
-        x1_labels_lambda = Lambda(lambda x: x, name = 'x1_labels')(x1_labels)
-        x2_labels_lambda = Lambda(lambda x: x, name = 'x2_labels')(x2_labels)
 
 
         def calculate_reconstruction_loss(y_true, y_pred):
@@ -97,12 +97,17 @@ class GAN():
         def transfert_loss(x1, gen_x1):
             Loss = 0
             for i, row in enumerate(self.cluster_pairs):
-                extract_cluster1 = tf.where(equal(x1_labels_lambda, row[1]))
-                extract_cluster2 = tf.where(equal(x2_labels_lambda, row[0]))
-                extract_latent1 = tf.gather_nd(code1, extract_cluster1)
-                extract_latent2 = tf.gather_nd(code2, extract_cluster2)
-                add_ = tf.math.add(tf.math.reduce_sum(extract_latent1) , tf.math.reduce_sum(extract_latent2))
+                cluster_idx1 = np.int(row[1])
+                cluster_idx2 = np.int(row[0])
+                mask_clusters_1 = Lambda(lambda x: x[:, :, cluster_idx1])(mask_clusters)
+                mask_clusters_2 = Lambda(lambda x: x[:, :, cluster_idx2])(mask_clusters)
+                code1_single =  Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask_clusters_1)),
+                                           name = 'onecluster_code1')(code1)
+                code2_single = Lambda(lambda x: tf.transpose(tf.matmul(tf.transpose(x), mask_clusters_2)),
+                                          name='onecluster_code1')(code2)
+                add_ = maximum_mean_discrepancy(code1_single, code2_single, self.sigmas)
                 Loss = tf.math.add(add_, Loss)
+
             return Loss
 
 
@@ -110,36 +115,13 @@ class GAN():
             Loss = transfert_loss(x1, gen_x1) + reconstruction_loss(x1, gen_x1)
             return Loss
 
-        self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=gen_x1)
-        self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
-                                   experimental_run_tf_function=False,
-                                   metrics=[transfert_loss,
-                                            reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
+        self.fullGenerator = Model(inputs=[x1, x2, mask_clusters], outputs=gen_x1, name = 'fullGenerator')
+        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
+        #                            experimental_run_tf_function=False,
+        #                            metrics=[transfert_loss,
+        #                                     reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
 
-
-
-        # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-        #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
-            #name = 'full_generator')
-            # self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-
-
-            #self.fullGenerator = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs=[gen_x1, code1, gen_x2, code2],
-         #                          name='full_generator')
-        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ) #autoencoder_loss(x1, x2, gen_x1, gen_x2))
-
-
-        # # Build the full generator - Trainable
-        # self.LossWeighter = LossWeighter( code1, x1_labels, code2, x2_labels, self.cluster_pairs)
-        # reconstr_loss1 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l1')([x1, gen_x1])
-        # reconstr_loss2 = Lambda(calculate_reconstruction_loss2, name='reconstruction_l2')([x2, gen_x2])
-        # weightedLoss = self.LossWeighter([reconstr_loss1, reconstr_loss2])
-        # self.fullGenerator_train = Model(inputs = [x1, x2, x1_labels, x2_labels] , outputs = weightedLoss)
-        # self.fullGenerator_train.compile(optimizer= optimizer , loss=self.ignoreLoss)
-        #
-        #
-
-        # Build and compile the discriminator
+        #Build and compile the discriminator
         self.discriminator = self.build_discriminator()
         self.discriminator.compile(loss='binary_crossentropy',
                                    optimizer=self.optimizer,
@@ -147,15 +129,22 @@ class GAN():
         # Build combined model
         self.discriminator.trainable = False
         # The discriminator takes generated data as input and determines validity
-        validity = self.discriminator(gen_x1)
 
-        self.combined = Model(inputs=[x1, x2, x1_labels, x2_labels], outputs= [gen_x1, validity]) #passes the gen_x1 output into validity
-        losses = {'autoencoder_x1': 'mse', #TODO determine how the genertor is optimized there!!
+        outputs = self.discriminator(self.fullGenerator([x1, x2, mask_clusters]))
+        #validity = self.discriminator(gen_x1)
+
+        self.combined = Model(inputs=[x1, x2, mask_clusters], outputs= [gen_x1, outputs]) #passes the gen_x1 output into validity
+
+        losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
         loss_weights = {'autoencoder_x1': 1,
                         'discriminator': 0.1}
-        metrics = {'discriminator': 'accuracy'}
-        self.combined.compile(loss=losses, optimizer=self.optimizer, loss_weights=loss_weights, metrics=metrics) # ['loss', 'autoencoder_loss', 'discriminator_loss', 'discriminator_accuracy']
+        metrics = {'discriminator': 'accuracy',
+                   'autoencoder_x1': [transfert_loss,
+                                            reconstruction_loss]}
+        self.combined.compile(loss=losses, optimizer=self.optimizer,
+                              loss_weights=loss_weights, metrics=metrics,
+                              experimental_run_tf_function=False)
 
     ##############################################
 
@@ -194,8 +183,8 @@ class GAN():
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
-        all_labels1 = x1_train_df['cluster_labels']
-        all_labels2 = x2_train_df['cluster_labels']
+        x1_labels = x1_train_df['cluster_labels']
+        x2_labels = x2_train_df['cluster_labels']
 
         # Adversarial ground truths
         valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
@@ -206,30 +195,31 @@ class GAN():
         d_loss = [0, 0]
 
         steps_per_epoch = max(len(x1_train), len(x2_train)) // batch_size
+        percent = batch_size / x1_train.shape[0]
+        sss = StratifiedShuffleSplit(n_splits=steps_per_epoch, train_size=percent, random_state=12345)
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
-            for step in range(steps_per_epoch):
+            train_generator_x1 = sss.split(x1_train, x1_labels)
+            train_generator_x2 = sss.split(x2_train, x2_labels)
+            for (gener_idx1, gener_idx2) in zip(train_generator_x1, train_generator_x2):
                 # ---------------------
                 #  Train Discriminator
                 # ---------------------
 
-                # Select a random batch of x1 and x2 #TODO: Implement a stratified sampling between the batches
-                idx1 = np.random.randint(0, x1_train.shape[0], batch_size)
-                idx2 = np.random.randint(0, x2_train.shape[0], batch_size)
+                # Select a random batch of x1 and x2
+                idx1 = gener_idx1[0]
+                idx2 = gener_idx2[0]
                 x1 = x1_train[idx1]
                 x2 = x2_train[idx2]
-                x1_labels = x1_train_df['cluster_labels'][idx1]
-                x2_labels = x2_train_df['cluster_labels'][idx2]
-                dummy_out = np.zeros((len(x1_labels),))
-
+                x1_lab = x1_labels[idx1]
+                x2_lab = x2_labels[idx2]
+                mask_clusters = make_mask_tensor(x1, x2, x1_lab, x2_lab)
+                assert(x1.shape[0] ==  batch_size)
+                assert (x2.shape[0] == batch_size)
 
                 # Generate a batch of new images
-                self.fullGenerator.fit([x1, x2, x1_labels, x2_labels] , x1) # TODO ADD ON NOT IN ORIGINAL CODE
-                #gen_x1, _, _, _ = self.generator.predict(x1, x2)
-                #gen_x1, gen_x2 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
-                gen_x1 = self.fullGenerator.predict([x1, x2, x1_labels, x2_labels])
-                # #self.latent2 = self.generator.latent_space(x2)
+                gen_x1 = self.fullGenerator.predict([x1, x2, mask_clusters])
 
 
                 # Train the discriminator
@@ -248,25 +238,34 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2, x1_labels, x2_labels], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
-                #g_loss2 = self.fullGenerator_train.train_on_batch([x1, x2, x1_labels, x2_labels], dummy_out)
-                #print(g_loss)
+                g_loss = self.combined.train_on_batch([x1, x2, mask_clusters], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
 
 
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
-            #gen_x1, _, _, _= self.generator.predict(x1_train, x2_train)
-            #gen_x1, _ = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
-            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, all_labels1, all_labels2])
-            g_loss = self.combined.test_on_batch([x1_train, x2_train,  all_labels1, all_labels2], [x1_train, valid_full]) #
+            print('epoch start')
+            mask_clusters = make_mask_tensor(x1_train, x2_train, x1_labels, x2_labels)
+            print('made mask')
+            gen_x1 = self.fullGenerator.predict([x1_train, x2_train, mask_clusters])
+            print('made generator predict')
+            g_loss = self.combined.test_on_batch([x1_train, x2_train, mask_clusters], [x1_train, valid_full]) #
+            print('made combined test on batch ')
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
+            print('made discriminator test on batch')
             # g_loss = np.mean(g_loss_list, axis=0)
             # d_loss = np.mean(d_loss_list, axis=0)
             # Plot the progress
-            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
-                  (epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
+            #print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
+            #      (epoch, d_loss[0], 100 * d_loss[1],
+            #       g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
+            print("/n /n ")
+            for value, item in zip(g_loss, self.combined.metrics_names):
+                print("Combined: {} = {}".format(item, value))
+
+            for value, item in zip(d_loss, self.discriminator.metrics_names):
+                print("Discriminator: {} = {}".format(item, value))
 
             plot_model["epoch"].append(epoch)
             plot_model["d_loss"].append(d_loss[0])
@@ -332,14 +331,14 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
     pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True, 'split':0.80}
-    path_data1_clusters = '../bermuda_original_code/pancreas/baron_seurat.csv'
-    path_data2_clusters = '../bermuda_original_code/pancreas/muraro_seurat.csv'
-    cluster_similarity_file =  '../bermuda_original_code/pancreas/pancreas_metaneighbor.csv'
+    path_data1_clusters = '../bermuda_original_code_/pancreas/baron_seurat.csv'
+    path_data2_clusters = '../bermuda_original_code_/pancreas/muraro_seurat.csv'
+    cluster_similarity_file =  '../bermuda_original_code_/pancreas/pancreas_metaneighbor.csv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr)
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
+    n_clusters = len(np.unique(x1_train['cluster_labels'])) + len(np.unique(x2_train['cluster_labels']))
 
-
-    gan = GAN(len(x1_train['gene_sym']), cluster_pairs) # n_markers
+    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = 21 ) #
     gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)

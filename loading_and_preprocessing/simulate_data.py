@@ -18,7 +18,7 @@ flags.DEFINE_integer('n_cells_max', 2000,'max number of cells per patients (numb
 flags.DEFINE_integer('n_batches',2,'number of batches')
 flags.DEFINE_string('distribution', 'gamma', 'distribution to sample from {gamma, poisson}')
 flags.DEFINE_integer('seed', 234, 'set rng seed')
-flags.DEFINE_string('path_save', None,'path to save the generated data')
+flags.DEFINE_string('path_save', None, 'path to save the generated data')
 flags.DEFINE_boolean('add_ri_patient',False,'whether to add a Random Intercept per patient')
 
 
@@ -75,7 +75,7 @@ def simulate_data(n_samples, n_markers, n_cells_min, n_cells_max, n_batches, dis
 
 def main(argv):
     del argv
-    
+    print('in main')
     toy_data = simulate_data(FLAGS.n_samples, FLAGS.n_markers, FLAGS.n_cells_min,
                              FLAGS.n_cells_max, FLAGS.n_batches, 
                              FLAGS.distribution, FLAGS.seed, FLAGS.add_ri_patient)

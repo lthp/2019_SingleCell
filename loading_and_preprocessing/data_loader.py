@@ -10,8 +10,8 @@ def normalize(x):
     return pd.DataFrame(data=data, columns=x.columns, index=x.index)
 
 
-def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
-                    panel=None, seed=42, n_cells_to_select=0, test_size=0.2):
+def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'], 
+                    panel=None, seed=42, n_cells_to_select=0, test_size=0.2, upsample=True):
     """
     Function to load data and split into 2 inputs with train and test sets
     inputs:
@@ -48,7 +48,7 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
     selected_cols = [col for col in df.columns if "metadata" not in col]
     x1 = x1.loc[:, selected_cols]
     x2 = x2.loc[:, selected_cols]
-    if n_cells_to_select > 0:
+    if n_cells_to_select > 0:  # Downsample
         n_cells_to_select = np.min([n_cells_to_select, x1.shape[0], x2.shape[0]])
     else:
         n_cells_to_select = np.max([x1.shape[0], x2.shape[0]])  # upsample
