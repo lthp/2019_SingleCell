@@ -25,6 +25,7 @@ run_MetaNeighbor_US<-function(vargenes, data, celltypes, pheno){
   rank.dat=cor.dat*0
   print("...run rank")
   rank.dat[]=rank(cor.dat,ties.method="average",na.last = "keep") # cell* cell correlation item 
+  print(rank.dat[1:10, 1:10])
   rank.dat[is.na(rank.dat)]=0
   rank.dat=rank.dat/max(rank.dat)
   sumin    =  (rank.dat) %*% cell.labels
@@ -72,7 +73,8 @@ print(paste0("Dataset: ", filename))
 dataset = read.table(filename, sep = '\t', header = F)
 rownames(dataset) = dataset[,1]
 dataset = dataset[,2:ncol(dataset)]
-
+print("subsetting dataset")
+dataset = dataset[, c(1:15000, 33000:48000)]#TODO remove
 cluster_labels = unique(as.integer(dataset["metadata_phenograph",])) # Unique 1-21 
 
 pheno = as.data.frame(list(Celltype =  as.character(dataset["metadata_phenograph",]),# cluster id 
