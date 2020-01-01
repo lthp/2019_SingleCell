@@ -4,3 +4,11 @@
 */figures_bottleneck/*
 */output_dataframes_bottleneck/*
 .Rproj.user
+.Rhistory  
+.RData
+*/.Rproj.user
+*/.Rhistory
+*/.RData
+*/logs/*
+*.log
+
