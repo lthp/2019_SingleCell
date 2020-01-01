@@ -109,8 +109,7 @@ class GAN():
         os.makedirs(os.path.join('output_dimond_batchnorm', fname))
         os.makedirs(os.path.join('models_dimond_batchnorm', fname))
 
-        plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
-                      "g_reconstruction_error": [], "g_loss_total": []}
+        training_metrics = {"epoch": [], "d_loss": [], "d_accuracy": [], "g_loss": []}
 
         x1_train = x1_train_df.values
         x2_train = x2_train_df.values
@@ -171,15 +170,10 @@ class GAN():
             print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
                   (epoch, d_loss[0], 100 * d_loss[1], g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
 
-            plot_model["epoch"].append(epoch)
-            plot_model["d_loss"].append(d_loss[0])
-            plot_model["g_loss"].append(g_loss[2])
-
-            plot_model["d_accuracy"].append(d_loss[1])
-            plot_model["g_accuracy"].append(g_loss[3])
-
-            plot_model["g_reconstruction_error"].append(g_loss[1])
-            plot_model["g_loss_total"].append(g_loss[0])
+            training_metrics["epoch"].append(epoch)
+            training_metrics["d_loss"].append(d_loss[0])
+            training_metrics["d_accuracy"].append(d_loss[1])
+            training_metrics["g_loss"].append(g_loss)
 
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
@@ -187,10 +181,10 @@ class GAN():
                 gx1 = self.generator.predict(x1_train_df)
                 # self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_dimond_batchnorm')
-                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_dimond_batchnorm')
+                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
+                                      dir_name='output_dimond_batchnorm')
                 # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False,
                                          # dir_name='figures_dimond_batchnorm')
-        return plot_model
 
 
 if __name__ == '__main__':
@@ -199,7 +193,7 @@ if __name__ == '__main__':
 
     # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
     path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_full_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample75', batch_names=['batch1', 'batch3'],
                                                            seed=42, panel=None)
     # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels_old.parquet'
     # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
