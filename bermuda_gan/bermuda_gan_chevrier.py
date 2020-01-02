@@ -134,8 +134,8 @@ class GAN():
 
         losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'autoencoder_x1': 1,
-                        'discriminator': 0.1}
+        loss_weights = {'autoencoder_x1': 80,
+                        'discriminator': 20}
         metrics = {'discriminator': 'accuracy',
                    'autoencoder_x1': [transfert_loss,
                                             reconstruction_loss]}
@@ -258,8 +258,7 @@ class GAN():
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
             print('made discriminator test on batch')
-            # g_loss = np.mean(g_loss_list, axis=0)
-            # d_loss = np.mean(d_loss_list, axis=0)
+
             # Plot the progress
             #print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
             #      (epoch, d_loss[0], 100 * d_loss[1],
@@ -267,37 +266,30 @@ class GAN():
             print("/n /n ")
             for value, item in zip(g_loss, self.combined.metrics_names):
                 print("Combined: {} = {}".format(item, value))
+                plot_model["Combined: {}".format(item)] = value
 
             for value, item in zip(d_loss, self.discriminator.metrics_names):
                 print("Discriminator: {} = {}".format(item, value))
+                plot_model["Discriminator: {}".format(item)] = value
 
             plot_model["epoch"].append(epoch)
-            plot_model["d_loss"].append(d_loss[0])
-            plot_model["g_loss"].append(g_loss[2])
-
-            plot_model["d_accuracy"].append(d_loss[1])
-            plot_model["g_accuracy"].append(g_loss[3])
-
-            plot_model["g_reconstruction_error"].append(g_loss[1])
-            plot_model["g_loss_total"].append(g_loss[0])
 
             # If at save interval => save generated image samples
-            # TODO add back
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 # gen_x1 = self.generator.predict(x1_train_df)
 
-                # self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
-                # save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname)
+                # self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv')) # save model
+                save_info_bermuda.save_dataframes(epoch, x1_train, x2_train, gen_x1, fname, dir_name = frames_) # save dataframe
                 save_info_bermuda.save_scores(epoch=epoch,
                                               x1=x1_train, x2=x2_train,
                                               metrics=plot_model, gx1=gen_x1,
                                               fname= fname,
                                               x1_cells = x1_train_df['cell_labels'],
                                               x2_cells = x2_train_df['cell_labels'],
-                                              cell_label_table = cell_label,
-                                              dir_name = scores_)
-                #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False)
+                                              cell_label = cell_label,
+                                              dir_name = scores_) # save metrics
+                #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False) # plots
 
         return plot_model
 
@@ -318,10 +310,6 @@ if __name__ == '__main__':
     cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
     equiv_table_path_cells = os.path.join(base_dir, 'equivalence_tables', 'equivalence_table_metadata_celltype.tsv')
     output_path = os.path.join(base_dir, 'Outputs')
-
-    #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
-    #path_data2_clusters = #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
-    #cluster_similarity_file = # '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
