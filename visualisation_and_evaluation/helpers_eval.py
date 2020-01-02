@@ -10,8 +10,10 @@ from math import log, e
 from sklearn.neighbors import NearestNeighbors
 from sklearn.decomposition import PCA
 import umap
+import scipy as sp
+from scipy.special import expit
 
-### copied from BERMUDA and ensured the random seeds are set where appropriate (= slightly modified)
+### adapted from BERMUDA and ensured the random seeds are set where appropriate (= slightly modified)
 def cal_UMAP(code, pca_dim = 50, n_neighbors = 30, min_dist=0.1, n_components=2, metric='cosine', random_state=0):
     """ Calculate UMAP dimensionality reduction
     Args:
@@ -186,7 +188,56 @@ def prep_data_for_eval(data, metadata, umap_dim=20, random_state=0):
     
     data = np.array(data)
     umap_codes = cal_UMAP(data, umap_dim, random_state=random_state)
-
     return(umap_codes, data, ct_labels_num, batch_labels_num, num_datasets)
 
+def extract_scores(path_dir, fname):
+    """
+    Function to extract the evaluation scores and metainformation
+    inputs:
+        path_dir: path to the directory with files
+        fname: file name
+    outputs:
+        pandas dataframe with scores and metainformation
+    """
+    df = pd.read_csv(path_dir+fname, header=None, index_col=[0])
+    # structure of saved scores from DL models: index=epoch, columns=[divergence_score, entropy_score, silhouette_score]
+    df.columns = ['divergence_score', 'entropy_score', 'silhouette_score']
+    df.index_name = ['epoch']
+    df['silhouette_score_neg'] = -df.loc[:,'silhouette_score']
+    df['method'] = fname.split('scores_')[-1].split('_full')[0].replace('_',' ')
+    df['sample'] = fname.split('_')[-1].split('.csv')[0]
+    return(df)
 
+def wa(scores, weights=[0.5,0.3,0.2]):
+    """
+    Function to calculate a weighted average of the scores after trafo via sigmoid function
+    inputs:
+        vectores with 3 values corresponding to ['divergence_score', 'entropy_score', 'silhouette_score_neg']
+    outputs:
+        weighted average
+    """
+    # map all scores to (0,1) via sigmoid function
+    scores = expit(scores)
+    divergence_score, entropy_score, silhouette_score_neg = scores
+    wa = weights[0]*divergence_score + weights[1]*entropy_score + weights[2]*silhouette_score_neg
+    return(wa)
+
+
+def select_best_run(df, method='div'):
+    """
+    Function to select the best run wrt scores
+    inputs:
+        df: pd dataframe with scores and metainformation
+        method: method to select the scores {'div': based on divergence score only, 
+                                             'wa': weighted average of the 3 scores}
+    outputs: 
+        pd dataframe of 1 row with the scores and metainformation for the best run
+    """
+    if(method=='div'):
+        df_best = df.loc[[df['divergence_score'].idxmin()],:]
+    elif(method=='wa'):
+        wa_score = df[['divergence_score', 'entropy_score', 'silhouette_score_neg']].apply(lambda x: wa(x), axis=1)
+        df_best = df.loc[[wa_score.idxmin()],:]
+    else:
+        print('please provide a valid selection method')
+    return(df_best)

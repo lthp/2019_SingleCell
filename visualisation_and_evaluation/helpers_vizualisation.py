@@ -11,36 +11,7 @@ import umap
 reducer = umap.UMAP()
 import matplotlib.cm as cm
 import os
-
-
-def eval_knn_proportions(df, k=10):
-    """
-    Function to evaluate mixing of the batches
-    inputs:
-        df: a pandas dataframe with cells in rows and markers+metadata_markers in columns. 
-        The IDs should be in the index. eg. Data23_Panel1_tx_NR4_Patient9
-        (note: atm works with 2 batches only)
-        k: number of nearest neighbors to consider
-    outputs:
-        batch1_proportions: a list containing proportions of first batch encountered in cell neighborhoods
-    """
-    col_w_metadata = [x for x in df.columns if 'metadata_' in x]
-    X = np.array(df.loc[:,~df.columns.isin(col_w_metadata)])
-    nbrs = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(X)
-    distances, indices = nbrs.kneighbors(X)
-    
-    batch1_name = list(set(df.index))[0]
-    batch1_proportions = []
-    for i in range(df.shape[0]):
-        idx = indices[i]
-        batch_counts = df.iloc[idx,:].reset_index()[df.iloc[idx,:].index.name].value_counts()
-        batch_prop = batch_counts/len(idx)
-        if(batch_prop.index[0]==batch1_name):
-            batch_prop = batch_prop[0]
-        else:
-            batch_prop = 1 - batch_prop[0]
-        batch1_proportions.append(batch_prop)
-    return(batch1_proportions)
+import scipy as sp
 
 
 def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures'):
@@ -127,6 +98,38 @@ def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
         plt.ylabel('Umap 2', fontsize = 12)
         plt.title('UMAP projection of the dataset with random state'.format(random_state_), fontsize=12)
     plt.legend(np.unique(df_embedding["ID"]))
+    if save_as is not None:
+        plt.savefig(os.path.join(folder_name, save_as))
+        plt.close()
+    else:
+        plt.show()
+        
+
+def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folder_name='figures'):
+    """
+    Function to plot all the scores from different batch correction methods
+    data: pd dataframe with all the scores
+    xcol: name of the column to plot on the xaxis
+    ycol: name of the column to plot on the yaxis
+    title: plot title
+    """
+    if(len(sp.unique(data['sample']))>1):
+        score_plot = sns.scatterplot(x=xcol, y=ycol, 
+                                     data=data,
+                                     hue = 'method', style='sample', legend='brief')
+    else:
+        score_plot = sns.scatterplot(x=xcol, y=ycol, 
+                                     data=data,
+                                     hue = 'method', legend='brief')
+    # correct labels
+    xlab = score_plot.get_xlabel()
+    xlab = xlab.replace('_',' ')
+    ylab = score_plot.get_ylabel()
+    ylab = ylab.replace('_',' ')
+    score_plot.set(xlabel=xlab, ylabel=ylab, title = title)
+    # move the legend outside the plot
+    handles, names = score_plot.get_legend_handles_labels()
+    score_plot.legend(handles, names, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     if save_as is not None:
         plt.savefig(os.path.join(folder_name, save_as))
         plt.close()
