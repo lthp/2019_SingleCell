@@ -108,13 +108,14 @@ class GAN():
         return Model(x2, validity)
 
     def train(self, x1_df, x2_df, epochs, batch_size=128, sample_interval=50):
-        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        fname = '_ganvanilladiamondbatch_full_upsample' + x1_df.index[0].split('.')[0]
-        fname = time + fname
+        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        #fname = '_ganvanilladiamondbatch_full_corrupsample' + x1_df.index[0].split('.')[0]
+        #fname = time + fname
         os.makedirs(os.path.join('figures', fname))
         os.makedirs(os.path.join('output', fname))
         os.makedirs(os.path.join('models', fname))
         plot_model = {"epoch": [], "d_loss": [], "g_loss": []}
+        training_metrics = {"epoch": [], "d_loss": [], "d_accuracy": [], "g_loss": []}
 
         x1_train = x1_df.values
         x2_train = x2_df.values
@@ -160,12 +161,18 @@ class GAN():
             # Plot the progress
             print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100 * d_loss[1], g_loss))
 
+            training_metrics["epoch"].append(epoch)
+            training_metrics["d_loss"].append(d_loss[0])
+            training_metrics["d_accuracy"].append(d_loss[1])
+            training_metrics["g_loss"].append(g_loss)
+
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_df)
                 save_info.save_dataframes(epoch, x1_df, x2_df, gx1, fname, dir_name='output')
-                save_info.save_scores(epoch, x1_df, x2_df, gx1, fname, dir_name='output')
+                save_info.save_dataframes(epoch, x1_df, x2_df, gx1, fname, dir_name='output')
+                save_info.save_scores(epoch, x1_df, x2_df, gx1, training_metrics, fname, dir_name='output')
 
 
 if __name__ == '__main__':
@@ -173,7 +180,7 @@ if __name__ == '__main__':
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
     # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
     path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_full_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample75', batch_names=['batch1', 'batch3'],
                                                            seed=42, panel=None)
 
     #path = os.getcwd()

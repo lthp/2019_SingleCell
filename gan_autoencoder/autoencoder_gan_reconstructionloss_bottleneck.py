@@ -85,12 +85,14 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
-        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        fname = '_ganautobottlebatch_loss0.8_full_upsample' + x1_train_df.index[0].split('.')[0]
-        fname = time + fname
+        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        # fname = '_ganautobottlebatch_loss0.8_full_corrupsample' + x1_train_df.index[0].split('.')[0]
+        # fname = time + fname
         os.makedirs(os.path.join('figures_bottleneck', fname))
         os.makedirs(os.path.join('output_bottleneck', fname))
         os.makedirs(os.path.join('models_bottleneck', fname))
+
+        training_metrics = {"epoch": [], "d_loss": [], "d_accuracy": [], "g_loss": []}
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -164,13 +166,19 @@ class GAN():
             plot_model["g_reconstruction_error"].append(g_loss[1])
             plot_model["g_loss_total"].append(g_loss[0])
 
+            training_metrics["epoch"].append(epoch)
+            training_metrics["d_loss"].append(d_loss[0])
+            training_metrics["d_accuracy"].append(d_loss[1])
+            training_metrics["g_loss"].append(g_loss)
+
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                # self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
+                self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
-                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
+                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
+                                      dir_name='output_bottleneck')
                 # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, dir_name='figures_bottleneck')
 
         return plot_model
@@ -182,8 +190,9 @@ if __name__ == '__main__':
 
     # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
     # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
+
     path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_full_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample75', batch_names=['batch1', 'batch3'],
                                                            seed=42, panel=None)
     # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
 
@@ -192,4 +201,4 @@ if __name__ == '__main__':
     # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
     #                                                       seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)
