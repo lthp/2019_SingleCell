@@ -1,6 +1,5 @@
 import sys
 import os
-import numpy as np
 sys.path.append('/Users/laurieprelot/Documents/Projects/2019_Deep_learning/git_DL')
 datapath = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
 
@@ -11,4 +10,4 @@ path = os.path.join(datapath, 'chevrier_data_pooled_full_panels.parquet')
 
 ### Load Module
 load_data_basic_bermuda(path, path_equivalence = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/git_DL/bermuda_gan/equivalence_tables',
-                                 sample='sample5', batch_names=['batch1', 'batch3'], panel=None)
+                                 sample='sample5', batch_names=['batch1', 'batch3'], panel=None,  normalize = True)

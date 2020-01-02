@@ -20,6 +20,7 @@ from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
 from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
+from tensorflow.keras.backend import equal, sum
 from sklearn.model_selection import StratifiedShuffleSplit
 tf.keras.backend.set_floatx('float64')
 
@@ -313,19 +314,20 @@ if __name__ == '__main__':
     import os
     #from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
 
+    path = os.getcwd()
+
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
-    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True,
-                         'split':0.80, 'separator':',', 'reduce_set': 15}
-    path_data1_clusters = '../bermuda_original_code_/pancreas/baron_seurat.csv'
-    path_data2_clusters = '../bermuda_original_code_/pancreas/muraro_seurat.csv'
-    cluster_similarity_file =  '../bermuda_original_code_/pancreas/pancreas_metaneighbor.csv'
+    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 10}
+    path_data1_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
+    path_data2_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
+    cluster_similarity_file =  '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
-    cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr,  pre_process_paras['separator'])
+    cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
     n_clusters = max(np.concatenate( [x1_train['cluster_labels'], x2_train['cluster_labels'] ]))
 
-    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = 21 ) #
-    gan.train(x1_train, x2_train, epochs=100, batch_size=64, sample_interval=50)
+    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = n_clusters ) #
+    gan.train(x1_train, x2_train, epochs=10, batch_size=40, sample_interval=50)
