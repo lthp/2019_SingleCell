@@ -1,27 +1,28 @@
 '''Inspired from this code and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
 
+
 from __future__ import print_function, division
 
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation, Lambda
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
-
-
+from sklearn.model_selection import StratifiedShuffleSplit
 import tensorflow as tf
+tf.keras.backend.set_floatx('float64')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from datetime import datetime
 import sys
+
 sys.path.append("..")
 sys.path.append("/cluster/home/prelotla/GitHub/projects2019_DL_Class")
-from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
-from datetime import datetime
+
 from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
 from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
-from sklearn.model_selection import StratifiedShuffleSplit
-tf.keras.backend.set_floatx('float64')
+from info_on_checkpoint import save_info_bermuda, save_plots
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 

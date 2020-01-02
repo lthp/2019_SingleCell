@@ -1,28 +1,28 @@
 '''Inspired from this code and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
-
 from __future__ import print_function, division
 
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation, Lambda
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
-
-
+from sklearn.model_selection import StratifiedShuffleSplit
 import tensorflow as tf
+tf.keras.backend.set_floatx('float64')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from datetime import datetime
 import sys
+
 sys.path.append("..")
 sys.path.append("/cluster/home/prelotla/GitHub/projects2019_DL_Class")
-from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
-from datetime import datetime
+
 from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
 from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
-from tensorflow.keras.backend import equal, sum
-from sklearn.model_selection import StratifiedShuffleSplit
-tf.keras.backend.set_floatx('float64')
+from info_on_checkpoint import save_info_bermuda, save_plots
+
+
 
 '''
 This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
@@ -33,7 +33,7 @@ This model seems to be performing good.
 seed = 12345
 
 class GAN():
-    def __init__(self, n_markers=30, cluster_pairs = None, n_clusters = None) :
+    def __init__(self, n_markers=30, cluster_pairs = None, n_clusters = None ) :
         self.data_size = n_markers
         self.cluster_pairs = cluster_pairs
         self.optimizer = Adam(0.0002, 0.5)
@@ -170,10 +170,17 @@ class GAN():
 ####################
 
 
-    def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
+    def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50, cell_label_path = None, output_path = None ):
+        cell_label = pd.read_table(cell_label_path, sep = '\t')
+
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        os.makedirs(os.path.join('figures_bottleneck', fname))
-        os.makedirs(os.path.join('output_dataframes_bottleneck', fname))
+        figures_ = os.path.join(output_path, 'outputs_figures')
+        frames_ = os.path.join(output_path, 'output_dataframes')
+        models_ = os.path.join(output_path, 'output_models')
+        scores_ = os.path.join(output_path, 'output_scores')
+        for save_type in [figures_, frames_, scores_, models_]:
+            os.makedirs(os.path.join(save_type, fname))
+
 
         plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
                       "g_reconstruction_error": [], "g_loss_total": []}
@@ -276,53 +283,45 @@ class GAN():
 
             # If at save interval => save generated image samples
             # TODO add back
-            # if epoch % sample_interval == 0:
-            #     print('generating plots')
-            #     self.plot_progress(epoch, x1_train, x2_train, plot_model, fname, all_labels1, all_labels2 )
+            if epoch % sample_interval == 0:
+                print('generating plots and saving outputs')
+                # gen_x1 = self.generator.predict(x1_train_df)
+
+                # self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
+                # save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname)
+                save_info_bermuda.save_scores(epoch=epoch,
+                                              x1=x1_train, x2=x2_train,
+                                              metrics=plot_model, gx1=gen_x1,
+                                              fname= fname,
+                                              x1_cells = x1_train_df['cell_labels'],
+                                              x2_cells = x2_train_df['cell_labels'],
+                                              cell_label_table = cell_label,
+                                              dir_name = scores_)
+                #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, umap=False)
 
         return plot_model
 
-    def transform_batch(self, x, labels): #TODO NOT USED???
-        gx, _= self.autoencoder.predict(x, labels) #TODO change
-        gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
-        return gx_df
-
-    def plot_progress(self, epoch, x1, x2, metrics, fname, labels1, labels2):
-        x1 = pd.DataFrame(x1)
-        x2 = pd.DataFrame(x2)
-        folder = 'figures_bottleneck'
-        plot_metrics(metrics, os.path.join(folder, fname, 'metrics'), autoencoder=True)
-        if epoch == 0:
-            plot_tsne(pd.concat([x1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                      save_as=os.path.join(fname, 'aegan_tsne_x1-x2_epoch' + str(epoch)), folder_name=folder)
-            plot_umap(pd.concat([x1, x2]), save_as=os.path.join(fname, 'aegan_umap_x1-x2_epoch' + str(epoch)),
-                      folder_name=folder)
-
-        gx1, _, = self.autoencoder.predict(x1, labels1)
-        gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
-        # export output dataframes
-        gx1.to_csv(os.path.join('output_dataframes_bottleneck', fname, 'gx1_epoch' + str(epoch) + '.csv'))
-        plot_tsne(pd.concat([x1, gx1]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_x1-gx1_epoch' + str(epoch)), folder_name=folder)
-        plot_tsne(pd.concat([gx1, x2]), do_pca=True, n_plots=2, iter_=500, pca_components=20,
-                  save_as=os.path.join(fname, 'aegan_tsne_gx1-x2_epoch' + str(epoch)), folder_name=folder)
-        plot_umap(pd.concat([x1, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x1_epoch' + str(epoch)), folder_name=folder)
-        plot_umap(pd.concat([x2, gx1]), save_as=os.path.join(fname, 'aegan_umap_gx1-x2_epoch' + str(epoch)), folder_name=folder)
 
 
 if __name__ == '__main__':
     import os
-    #from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
-
     path = os.getcwd()
 
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
-    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 10}
-    path_data1_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
-    path_data2_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
-    cluster_similarity_file =  '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
+    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5} # TODO Change reduce set
+    #base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
+    base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
+    path_data1_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
+    path_data2_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
+    cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
+    equiv_table_path_cells = os.path.join(base_dir, 'equivalence_tables', 'equivalence_table_metadata_celltype.tsv')
+    output_path = os.path.join(base_dir, 'Outputs')
+
+    #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
+    #path_data2_clusters = #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
+    #cluster_similarity_file = # '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
@@ -330,4 +329,6 @@ if __name__ == '__main__':
     n_clusters = max(np.concatenate( [x1_train['cluster_labels'], x2_train['cluster_labels'] ]))
 
     gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = n_clusters ) #
-    gan.train(x1_train, x2_train, epochs=10, batch_size=40, sample_interval=50)
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=40, sample_interval=1, cell_label_path = equiv_table_path_cells, output_path = output_path)#TODO change sample intervals
+
+

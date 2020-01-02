@@ -48,10 +48,6 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
     for filename in dataset_file_list:
         dataset = {}
         df = pd.read_table(filename, header=None, sep = separator)
-        # if reduce_set is not None:
-        #     df = df.set_index([0])
-        #     df = df.iloc[:,reduce_set]
-        #     df = df.reset_index()
         dat = df[df.columns[1:]].values
         sample_labels = dat[0, :].astype(int)
         cell_labels  =  dat[1, :].astype(int)
