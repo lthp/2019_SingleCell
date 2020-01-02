@@ -2,14 +2,10 @@
 
 from __future__ import print_function, division
 
-from sklearn.model_selection import train_test_split
-from tensorflow.keras.datasets import mnist
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation, Lambda
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras import backend as K
-from tensorflow.keras.losses import categorical_crossentropy
 
 
 import tensorflow as tf
@@ -18,6 +14,7 @@ import numpy as np
 import pandas as pd
 import sys
 sys.path.append("..")
+sys.path.append("/cluster/home/prelotla/GitHub/projects2019_DL_Class")
 from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_metrics, plot_umap
 from datetime import datetime
 from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
@@ -317,15 +314,7 @@ if __name__ == '__main__':
     import os
     #from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
 
-    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
-    # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
-    #path= '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/chevrier_data_pooled_panels.parquet'
-    #x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
-    
     path = os.getcwd()
-    # path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
-    # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
-    #                                                       seed=42, n_cells_to_select=0)
 
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
@@ -338,7 +327,7 @@ if __name__ == '__main__':
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
-    n_clusters = len(np.unique(x1_train['cluster_labels'])) + len(np.unique(x2_train['cluster_labels']))
+    n_clusters = max(np.concatenate( [x1_train['cluster_labels'], x2_train['cluster_labels'] ]))
 
-    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = 21 ) #
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = n_clusters ) #
+    gan.train(x1_train, x2_train, epochs=10, batch_size=40, sample_interval=50)

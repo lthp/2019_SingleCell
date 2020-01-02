@@ -5,7 +5,6 @@ from sklearn.preprocessing import scale, minmax_scale
 import imblearn as imb
 imblearn_seed = 0
 np.random.seed(12345)
-import tensorflow as tf
 
 def loader(dataset_file_list, take_log, oversample, standardization, scaling, separator = ',', reduce_set = None):
     """ Read TPM data of a dataset saved in csv format
@@ -25,6 +24,7 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
     Returns:
         dataset: a dict with keys 'gene_exp', 'gene_sym', 'sample_labels', 'cell_labels', 'cluster_labels'
     """
+    ### Set classes related parameters
     all_classes = np.array([])
     classes_per_dataset = []
     for filename in dataset_file_list:
@@ -43,7 +43,7 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
     if reduce_set is not None:
         resampling_size = np.cumproduct(classes_per_dataset)[-1] * reduce_set  # For tests
 
-
+    ### Preprocess individual datasets
     dataset_list = []
     for filename in dataset_file_list:
         dataset = {}
@@ -92,6 +92,7 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
         dataset['cell_labels'] = cell_labels_resampled.flatten()
         dataset['gene_exp'] = gene_exp_resampled.transpose()
         dataset['cluster_labels'] = cluster_labels_resampled
+        print("dataset {} size used for modelling {}".format(filename, len(dataset['cell_labels']) ))
         dataset_list.append(dataset)
     return dataset_list
 
@@ -134,6 +135,8 @@ def  train_test(dataset, split = 0.80):
             x2_test[name] = x2[name][idx2[c2:]]
 
     return x1_train, x1_test, x2_train, x2_test
+
+
 
 def read_cluster_similarity(filename, thr, separator = ','):
     """ read cluster similarity matrix, convert into the format of pairs and weights
@@ -270,7 +273,7 @@ def intersect_dataset(dataset_list):
 
 
 def pre_processing(dataset_file_list, pre_process_paras):
-    """ pre-processing of multiple datasets
+    """ Wrapper function for pre-processing of multiple datasets
     Args:
         dataset_file_list: list of filenames of datasets
         pre_process_paras: dict, parameters for pre-processing
@@ -292,50 +295,26 @@ def pre_processing(dataset_file_list, pre_process_paras):
     return x1_train, x1_test, x2_train, x2_test
 
 
-# def make_mask(to_mask, positive_indices, sample_size):
-#     """Args:
-#     to_mask: tensor that will be masked [n_samples , features]
-#     positive_indices: a tensor with i sample indices for which the rows of the mask should be True
-#     Returns:
-#         A boolean tensor with i rows True and n-i rows false
-#     """
-#     mask = None
-#     for i in np.arange(sample_size):
-#         if i in positive_indices:
-#             extend = tf.expand_dims(tf.constant(np.ones(shape=sample_size)), 1)
-#         else:
-#             extend = tf.expand_dims(tf.constant(np.zeros(shape=sample_size)), 1)
-#         if mask is not None:
-#             mask = tf.concat([mask, extend], axis=1)
-#         else:
-#             mask = extend
-#     mask = tf.transpose(mask)
-#     return mask
 
 def make_mask_np(to_mask, positive_indices):
     """Args:
     to_mask: tensor that will be masked [n_samples , features]
     positive_indices: a tensor with i sample indices for which the rows of the mask should be True
     Returns:
-        A boolean tensor with i rows True and n-i rows false
+        A boolean mask of shape [n_sample * n_samples]
     """
     mask = np.zeros((to_mask.shape[0], to_mask.shape[0]))
     mask[:, list(positive_indices)] = 1
-    # for i in np.arange(to_mask.shape[0]):
-    #     if i in positive_indices:
-    #         extend = np.ones(shape=(to_mask.shape[0], 1) )
-    #     else:
-    #         extend = np.zeros(shape=(to_mask.shape[0], 1) )
-    #     if mask is not None:
-    #         mask = np.concatenate([mask, extend], axis=1)
-    #     else:
-    #         mask = extend
-
     return mask
 
+
+
 def make_mask_tensor(x1, x2, x1_labels, x2_labels):
-    print(x1.shape)
-    classes_ = len(np.unique(x1_labels)) + len(np.unique(x2_labels)) + 1
+    """ Creates a numpy object which overlays n_cluster +1  masks of shape [n_samples * n_samples]
+    They are used in the extraction of cluster specific latent space values prior to MMD in the NN
+    Returns:
+        A 3 d numpy array of size [n_samples * n_samples * n+1 clusters]"""
+    classes_ = max(np.concatenate([x1_labels, x2_labels])) + 1
 
     mask_tensor = np.empty(shape = (x1.shape[0],x1.shape[0],classes_))
     for j in np.unique(x1_labels):
