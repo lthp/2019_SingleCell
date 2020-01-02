@@ -105,7 +105,7 @@ def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
         plt.show()
         
 
-def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folder_name='figures'):
+def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folder_name='figures', ax=None, legend='brief'):
     """
     Function to plot all the scores from different batch correction methods
     data: pd dataframe with all the scores
@@ -116,11 +116,11 @@ def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folde
     if(len(sp.unique(data['sample']))>1):
         score_plot = sns.scatterplot(x=xcol, y=ycol, 
                                      data=data,
-                                     hue = 'method', style='sample', legend='brief')
+                                     hue = 'method', style='sample', legend=legend, ax = ax)
     else:
         score_plot = sns.scatterplot(x=xcol, y=ycol, 
                                      data=data,
-                                     hue = 'method', legend='brief')
+                                     hue = 'method', legend=legend, ax = ax)
     # correct labels
     xlab = score_plot.get_xlabel()
     xlab = xlab.replace('_',' ')
@@ -128,10 +128,12 @@ def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folde
     ylab = ylab.replace('_',' ')
     score_plot.set(xlabel=xlab, ylabel=ylab, title = title)
     # move the legend outside the plot
-    handles, names = score_plot.get_legend_handles_labels()
-    score_plot.legend(handles, names, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    if(legend!=False):
+        handles, names = score_plot.get_legend_handles_labels()
+        score_plot.legend(handles, names, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     if save_as is not None:
         plt.savefig(os.path.join(folder_name, save_as))
         plt.close()
     else:
-        plt.show()
+        score_plot
+        #plt.show()
