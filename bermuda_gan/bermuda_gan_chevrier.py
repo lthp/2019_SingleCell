@@ -330,14 +330,13 @@ if __name__ == '__main__':
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
-    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True,
-                         'split':0.80, 'separator':',', 'reduce_set':None}
-    path_data1_clusters = '../bermuda_original_code_/pancreas/baron_seurat.csv'
-    path_data2_clusters = '../bermuda_original_code_/pancreas/muraro_seurat.csv'
-    cluster_similarity_file =  '../bermuda_original_code_/pancreas/pancreas_metaneighbor.csv'
+    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 10}
+    path_data1_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
+    path_data2_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
+    cluster_similarity_file =  '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
-    cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr,  pre_process_paras['separator'])
+    cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
     x1_train, x1_test, x2_train, x2_test = pre_processing(dataset_file_list, pre_process_paras)
     n_clusters = len(np.unique(x1_train['cluster_labels'])) + len(np.unique(x2_train['cluster_labels']))
 

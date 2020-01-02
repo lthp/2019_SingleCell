@@ -2,18 +2,21 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import scale, minmax_scale
-from imblearn.over_sampling import RandomOverSampler
+import imblearn as imb
 imblearn_seed = 0
 np.random.seed(12345)
 import tensorflow as tf
 
-def loader(dataset_file_list, take_log, oversample, standardization, scaling):
+def loader(dataset_file_list, take_log, oversample, standardization, scaling, separator = ',', reduce_set = None):
     """ Read TPM data of a dataset saved in csv format
     Format of the csv:
     first row: sample labels
     second row: cell labels
     third row: cluster labels from Seurat
     first column: gene symbols
+    # Resampling heuristics: the number of sample in the resampled datasets
+    # should be a multiple of the number of the number of classes in each dataset and
+    # and the number of sample per class be >= to the number of sample in the major class
     Args:
         filename: name of the csv file
         take_log: whether do log-transformation on input data
@@ -25,7 +28,11 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling):
     all_classes = np.array([])
     classes_per_dataset = []
     for filename in dataset_file_list:
-        df = pd.read_csv(filename, header=None, nrows = 3)
+        df = pd.read_table(filename, header=None, nrows = 3, sep = separator)
+        #if reduce_set is not None:
+        #   df = df.set_index([0])
+        #   df = df.iloc[:,reduce_set]
+        #   df = df.reset_index()
         dat = df[df.columns[1:]].values
         cluster_labels = dat[2, :].astype(int)
         classes_per_dataset.append(len(np.unique(cluster_labels)))
@@ -33,16 +40,18 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling):
     major_class = max(np.unique(all_classes, return_counts = True)[1])
     resampling_size = np.cumproduct(classes_per_dataset)[-1] * \
                       np.int((major_class / np.min(classes_per_dataset) + 1))
-    # Resampling heuristics: the number of sample in the resampled datasets
-    # should be a multiple of the number of the number of classes in each dataset and
-    # and the number of sample per class be >= to the number of sample in the major class
-
+    if reduce_set is not None:
+        resampling_size = np.cumproduct(classes_per_dataset)[-1] * reduce_set  # For tests
 
 
     dataset_list = []
     for filename in dataset_file_list:
         dataset = {}
-        df = pd.read_csv(filename, header=None)
+        df = pd.read_table(filename, header=None, sep = separator)
+        # if reduce_set is not None:
+        #     df = df.set_index([0])
+        #     df = df.iloc[:,reduce_set]
+        #     df = df.reset_index()
         dat = df[df.columns[1:]].values
         sample_labels = dat[0, :].astype(int)
         cell_labels  =  dat[1, :].astype(int)
@@ -58,21 +67,31 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling):
         if scaling:  # scale to [0,1]
             minmax_scale(gene_exp, feature_range=(0, 1), axis=1, copy=False)
         if oversample:
+            gene_exp = gene_exp.transpose()
+            estimators = []
+            samples_per_class= np.unique(cluster_labels, return_counts=True)
             target_sizes = {}
-            cluster_q = np.unique(cluster_labels)
-            for class_ in cluster_q:
-                target_sizes[class_] = int  (resampling_size / len(cluster_q))
-            gene_exp = gene_exp.transpose()
-            gene_exp, cluster_labels, sampling_idx = RandomOverSampler(random_state=imblearn_seed, return_indices = True, sampling_strategy = target_sizes ).fit_sample(gene_exp, cluster_labels )
-            cell_labels = cell_labels[sampling_idx]
-            sample_labels = sample_labels[sampling_idx]
-            gene_exp = gene_exp.transpose()
+            for class_, initial_size in zip(samples_per_class[0], samples_per_class[1]):
+                target_sizes[class_] = int  (resampling_size /len(samples_per_class[0]))
+                if initial_size > target_sizes[class_]:
+                    estimators.append((str(class_),
+                        imb.under_sampling.RandomUnderSampler(random_state=imblearn_seed,
+                                                              return_indices = False,
+                                                              sampling_strategy = {class_: target_sizes[class_]}) ))
+                else:
+                    estimators.append((str(class_),
+                        imb.over_sampling.RandomOverSampler(random_state=imblearn_seed,
+                                                            return_indices= False,
+                                                            sampling_strategy={class_: target_sizes[class_]})))
+            pipe = imb.pipeline.Pipeline(estimators, verbose=True)
+            gene_exp_resampled, cluster_labels_resampled = pipe.fit_resample(gene_exp, cluster_labels)
+            cell_labels_resampled , _ = pipe.fit_resample(np.array(cell_labels).reshape([-1,1]), cluster_labels)
+            sample_labels_resampled, _ = pipe.fit_resample(np.array(sample_labels).reshape([-1, 1]), cluster_labels)
 
-        dataset['sample_labels'] = sample_labels #TODO remove
-        dataset['cell_labels'] = cell_labels
-        dataset['gene_exp'] = gene_exp
-        dataset['cluster_labels'] = cluster_labels
-
+        dataset['sample_labels'] = cell_labels_resampled.flatten()
+        dataset['cell_labels'] = cell_labels_resampled.flatten()
+        dataset['gene_exp'] = gene_exp_resampled.transpose()
+        dataset['cluster_labels'] = cluster_labels_resampled
         dataset_list.append(dataset)
     return dataset_list
 
@@ -116,7 +135,7 @@ def  train_test(dataset, split = 0.80):
 
     return x1_train, x1_test, x2_train, x2_test
 
-def read_cluster_similarity(filename, thr):
+def read_cluster_similarity(filename, thr, separator = ','):
     """ read cluster similarity matrix, convert into the format of pairs and weights
     first line is cluster label, starting with 1
     Args:
@@ -126,7 +145,7 @@ def read_cluster_similarity(filename, thr):
         cluster_pairs: np matrix, num_pairs by 3 matrix
                         [cluster_idx_1, cluster_id_2, weight]
     """
-    df = pd.read_csv(filename, header=None)
+    df = pd.read_table(filename, header=None, sep = separator )
     cluster_matrix = df[df.columns[:]].values
     cluster_matrix = cluster_matrix[1:, :]
     # use blocks of zeros to determine which clusters belongs to which datasets
@@ -264,8 +283,10 @@ def pre_processing(dataset_file_list, pre_process_paras):
     scaling = pre_process_paras['scaling']
     oversample = pre_process_paras['oversample']
     split = pre_process_paras['split']
+    separator = pre_process_paras['separator']
+    reduce_set = pre_process_paras['reduce_set']
 
-    dataset_list =  loader(dataset_file_list, take_log, oversample, standardization, scaling)
+    dataset_list =  loader(dataset_file_list, take_log, oversample, standardization, scaling, separator, reduce_set)
     dataset_list = intersect_dataset(dataset_list)  # retain intersection of gene symbols
     x1_train, x1_test, x2_train, x2_test = train_test(dataset_list, split)
     return x1_train, x1_test, x2_train, x2_test
@@ -313,6 +334,7 @@ def make_mask_np(to_mask, positive_indices):
     return mask
 
 def make_mask_tensor(x1, x2, x1_labels, x2_labels):
+    print(x1.shape)
     classes_ = len(np.unique(x1_labels)) + len(np.unique(x2_labels)) + 1
 
     mask_tensor = np.empty(shape = (x1.shape[0],x1.shape[0],classes_))
@@ -330,6 +352,6 @@ def make_mask_tensor(x1, x2, x1_labels, x2_labels):
 
 if __name__ == '__main__':
     dataset_file_list = ['data/muraro_seurat.csv', 'data/baron_human_seurat.csv']
-    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True}
+    pre_process_paras = {'take_log': True, 'standardization': True, 'scaling': True, 'oversample': True, 'separator':'\t'}
     dataset_list = pre_processing(dataset_file_list, pre_process_paras)
     print()
