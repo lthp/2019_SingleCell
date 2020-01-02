@@ -320,9 +320,12 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
     pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 10}
-    path_data1_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
-    path_data2_clusters = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
-    cluster_similarity_file =  '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
+    base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
+    path_data1_clusters = os.path.join(base_dir, 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
+    cluster_similarity_file = os.path.join(cluster_similarity_file, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
+    #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch3.bermuda.tsv'
+    #path_data2_clusters = #'/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/normalized/chevrier_data_pooled_full_panels.batch1.bermuda.tsv'
+    #cluster_similarity_file = # '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al/metaneighbor/chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
@@ -330,4 +333,4 @@ if __name__ == '__main__':
     n_clusters = max(np.concatenate( [x1_train['cluster_labels'], x2_train['cluster_labels'] ]))
 
     gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = n_clusters ) #
-    gan.train(x1_train, x2_train, epochs=10, batch_size=40, sample_interval=50)
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=40, sample_interval=50)
