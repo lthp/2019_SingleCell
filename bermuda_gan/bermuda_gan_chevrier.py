@@ -41,7 +41,7 @@ class GAN():
       1e3, 1e4, 1e5, 1e6]
         sigmas = tf.constant(sigmas, dtype = 'float64')
         self.sigmas =(tf.expand_dims(sigmas, 1))
-        self.intermed_dim = 20
+        self.intermed_dim = 40
         self.n_clusters = n_clusters
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
@@ -134,8 +134,8 @@ class GAN():
 
         losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'autoencoder_x1': 80,
-                        'discriminator': 20}
+        loss_weights = {'autoencoder_x1': 0.80,
+                        'discriminator': 0.20}
         metrics = {'discriminator': 'accuracy',
                    'autoencoder_x1': [transfert_loss,
                                             reconstruction_loss]}
@@ -314,8 +314,8 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
     pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5} # TODO Change reduce set
-    #base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
-    base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
+    base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
+    #base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
     path_data1_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
     path_data2_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
     cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
