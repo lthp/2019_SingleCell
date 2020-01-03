@@ -1,5 +1,7 @@
 from __future__ import print_function, division
-
+import sys
+import os
+sys.path.append(os.path.dirname(sys.path[0]))
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model

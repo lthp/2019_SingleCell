@@ -1,5 +1,7 @@
 from __future__ import print_function, division
-
+import sys
+import os
+sys.path.append(os.path.dirname(sys.path[0]))
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
@@ -204,4 +206,4 @@ if __name__ == '__main__':
     # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
     # seed=42, n_cells_to_select=0)
     gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)
