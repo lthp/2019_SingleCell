@@ -175,10 +175,10 @@ def prep_data_for_eval(data, metadata, umap_dim=20, random_state=0):
         umap_codes, data, cell_type_labels, batch_labels, number_of_datasets
     """
     assert(data.index.nlevels==1)
-    idx = list(data.index)
+    #idx = list(data.index)
     # get batch labels
-    batch_labels = metadata.loc[idx,'batch']
-    ct_labels = metadata.loc[idx,'cell_type']
+    batch_labels = metadata['batch']
+    ct_labels = metadata['cell_type']
     
     num_datasets = len(set(batch_labels))
     batch_dict = dict(zip(set(batch_labels), range(len(set(batch_labels)))))
