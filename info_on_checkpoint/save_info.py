@@ -15,7 +15,7 @@ def save_dataframes(epoch, x1, x2, gx1, fname, dir_name='output'):
     gx1.to_csv(os.path.join(dir_name, fname, 'gx1_epoch' + str(epoch) + '.csv'), index_label=False)
 
 
-def save_scores(epoch, x1, x2, gx1, metrics, fname, dir_name='output'):
+def save_scores(epoch, x1, x2, gx1, metrics, fname, dir_name='output', model_description=''):
     gx1 = pd.DataFrame(data=gx1, columns=x1.columns, index=x1.index + '_transformed')
     gx1.to_csv(os.path.join(dir_name, fname, 'gx1_epoch' + str(epoch) + '.csv'), index_label=False)
     df_eval = pd.concat([gx1, x2])
@@ -26,13 +26,13 @@ def save_scores(epoch, x1, x2, gx1, metrics, fname, dir_name='output'):
                                                                         batch_labels, num_datasets,
                                                                         50, 50, 'cosine',
                                                                         random_state=345)
-    f = open(os.path.join(dir_name, fname, 'scores.csv'), 'a', newline='')
+    f = open(os.path.join(dir_name, fname, 'scores' + model_description+'.csv'), 'a', newline='')
     score_writer = csv.writer(f)
     score_writer.writerow([epoch, divergence_score, entropy_score, silhouette_score])
     print(divergence_score, entropy_score, silhouette_score)
     f.close()
 
-    f = open(os.path.join(dir_name, fname, 'metrics.csv'), 'w', newline='')
+    f = open(os.path.join(dir_name, fname, 'metrics' + model_description+'.csv'), 'w', newline='')
     score_writer = csv.writer(f)
     score_writer.writerow(list(metrics.keys()))
     for metrics in np.transpose(list(metrics.values())):
