@@ -3,13 +3,13 @@ import pandas as pd
 import os
 
 
-def normalize(x):
+def make_normalization(x):
     data = x.values
     data = 2 * (data - np.nanmin(data, axis=0)) / (np.nanmax(data, axis=0) - np.nanmin(data, axis=0)) - 1
     return pd.DataFrame(data=data, columns=x.columns, index=x.index)
 
 
-def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_names=['batch1', 'batch2'], panel=None ):
+def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_names=['batch1', 'batch2'], panel=None , normalize = False):
     """
     Function to load data and split into 2 inputs with train and test sets
     inputs:
@@ -96,7 +96,8 @@ def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_name
                   header=True)
         # remove metadata columns
         x_mx = batch_values.loc[:, selected_cols]
-        x_mx = normalize(x_mx)
+        if normalize:
+            x_mx = make_normalization(x_mx)
         batch_values['dataset_label'] = dataset_id
         batch_values_save = pd.concat([batch_values.loc[:, metadata], x_mx], axis=1)
 
@@ -110,7 +111,6 @@ def load_data_basic_bermuda(path, path_equivalence, sample='sample1', batch_name
                                              batch_name + '.bermuda' + '.tsv'),
                              index = True, sep = '\t', header = False)
         # Create joined table
-        metadata.insert(0, 'dataset_label')
         batch_values_save = pd.concat([batch_values.loc[:, metadata_extended], x_mx], axis=1)
         dataset_id+=1
 
