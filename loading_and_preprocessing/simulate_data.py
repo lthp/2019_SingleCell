@@ -17,7 +17,8 @@ flags.DEFINE_integer('n_cells_min', 1000,'min number of cells per patients (numb
 flags.DEFINE_integer('n_cells_max', 2000,'max number of cells per patients (number drawn from [min,max])')
 flags.DEFINE_integer('n_batches',2,'number of batches')
 flags.DEFINE_string('distribution', 'gamma', 'distribution to sample from {gamma, poisson}')
-flags.DEFINE_integer('seed', 234, 'set rng seed')
+flags.DEFINE_integer('seed', 234, 'set random seed')
+flags.DEFINE_integer('subset', 0, 'how many cell-types remove form each batch to create a set with different cell populations')
 flags.DEFINE_string('path_save', None,'path to save the generated data')
 
 
@@ -78,6 +79,11 @@ def main(argv):
                                                   toy_data['metadata_sample'],
                                                   ['celltype'+x for x in toy_data['metadata_celltype']])]
     toy_data.index = idx
+    if(FLAGS.subset>0):
+	toy_data_sub = toy_data.copy()
+	toy_data_sub['metadata_joint'] = [x+'_'+y for x,y in zip(toy_data_sub['metadata_batch'], toy_data_sub['metadata_celltype'])]
+	to_remove = ['batch1_type2', 'batch1_type5', 'batch2_type3', 'batch2_type7']
+	toy_data = toy_data.loc[~toy_data_sub['metadata_joint'].isin(to_remove),:]
     table = pa.Table.from_pandas(toy_data)
     pq.write_table(table, FLAGS.path_save)
     
