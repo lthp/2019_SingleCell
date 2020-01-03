@@ -132,7 +132,7 @@ class GAN():
         valid_full_x2 = np.ones((len(x2_train), 1))
         d_loss = [0, 0]
 
-        steps_per_epoch = 1 #np.max([x1_train.shape[0], x2_train.shape[0]]) // batch_size
+        steps_per_epoch = np.max([x1_train.shape[0], x2_train.shape[0]]) // batch_size
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
