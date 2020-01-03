@@ -213,10 +213,19 @@ if __name__ == '__main__':
     parser.add_argument('sample', type=str)
     parser.add_argument('path', type=str)
     parser.add_argument('loss_lambda', type=float)
+    parser.add_argument('--toy', default=False, action='store_true')
     args = parser.parse_args()
     sample_name = 'sample' + args.sample
+
+    if args.toy:
+        batch_names = ['batch1', 'batch2']
+        modelname = 'residual_gan_full_panels_toy'
+    else:
+        batch_names = ['batch1', 'batch3']
+        modelname = 'residual_gan_full_panels_chevrier'
+
     x1_train, x1_test, x2_train, x2_test = load_data_basic(args.path, sample=sample_name,
-                                                           batch_names=['batch1', 'batch3'], seed=42, panel=None,
+                                                           batch_names=batch_names, seed=42, panel=None,
                                                            upsample=True)
-    gan = GAN('residual_gan_full_panels', x1_train.shape[1], args.loss_lambda)
+    gan = GAN(modelname, x1_train.shape[1], args.loss_lambda)
     gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)
