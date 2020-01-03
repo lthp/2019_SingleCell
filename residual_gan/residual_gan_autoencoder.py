@@ -1,5 +1,8 @@
 # !/usr/bin/env python
 from __future__ import print_function, division
+import sys
+import os
+sys.path.append(os.path.dirname(sys.path[0]))
 
 from sklearn.model_selection import train_test_split
 from tensorflow.keras.datasets import mnist
@@ -21,9 +24,10 @@ the generator autoencoder is diamond shaped (not with a bottleneck layer) AND ha
 
 
 class GAN():
-    def __init__(self, modelname, n_markers=30):
+    def __init__(self, modelname, n_markers=30, loss_lambda=0.9):
         self.modelname = modelname
         self.data_size = n_markers
+        self.loss_lambda = loss_lambda
         optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
@@ -51,8 +55,8 @@ class GAN():
         losses = {'generator': 'mean_absolute_error',
                   'discriminator': 'binary_crossentropy'}
 
-        loss_weights = {'generator': 0.9,
-                        'discriminator': 0.1}
+        loss_weights = {'generator': self.loss_lambda,
+                        'discriminator': 1-self.loss_lambda}
         metrics = {'discriminator': 'accuracy'}
         self.combined.compile(loss=losses, optimizer=optimizer, loss_weights=loss_weights, metrics=metrics)
 
@@ -105,13 +109,16 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
-        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
+        model_description = '_' + self.modelname + '_lambda' + str(self.loss_lambda) + '_' + \
+                            x1_train_df.index[0].split('_')[1]
+        fname = time + model_description
         os.makedirs(os.path.join('figures_' + self.modelname, fname))
         os.makedirs(os.path.join('output_' + self.modelname, fname))
         os.makedirs(os.path.join('models_' + self.modelname, fname))
 
         training_metrics = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
-                      "g_reconstruction_error": [], "g_loss_total": []}
+                            "g_reconstruction_error": [], "g_loss_total": []}
 
         x1_train = x1_train_df.values
         x2_train = x2_train_df.values
@@ -125,7 +132,7 @@ class GAN():
         valid_full_x2 = np.ones((len(x2_train), 1))
         d_loss = [0, 0]
 
-        steps_per_epoch = np.max([x1_train.shape[0], x2_train.shape[0]]) // batch_size
+        steps_per_epoch = 1 #np.max([x1_train.shape[0], x2_train.shape[0]]) // batch_size
         for epoch in range(epochs):
             d_loss_list = []
             g_loss_list = []
@@ -189,8 +196,10 @@ class GAN():
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
                 self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
-                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_'+self.modelname)
-                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname, dir_name='output_'+self.modelname)
+                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
+                                          dir_name='output_'+self.modelname)
+                save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
+                                      dir_name='output_'+self.modelname, model_description=model_description)
                 #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname, umap=True,
                 #                         dir_name='figures_'+self.modelname, autoencoder=True, modelname=self.modelname)
 
@@ -198,14 +207,16 @@ class GAN():
 if __name__ == '__main__':
     import os
     from loading_and_preprocessing.data_loader import load_data_basic
-    path = '/cluster/home/hthrainsson/chevrier_data_pooled_full_panels.parquet'
-    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\chevrier_data_pooled_full_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample5', batch_names=['batch1', 'batch3'],
-                                                           seed=42, panel=None, upsample=True)
-    gan = GAN('residual_gan_autoencoder_full_panels', x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=600, batch_size=64, sample_interval=25)
+    import argparse
 
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample10', batch_names=['batch1', 'batch3'],
-                                                           seed=42, panel=None, upsample=True)
-    gan = GAN('residual_gan_autoencoder_full_panels', x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=600, batch_size=64, sample_interval=25)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('sample', type=str)
+    parser.add_argument('path', type=str)
+    parser.add_argument('loss_lambda', type=float)
+    args = parser.parse_args()
+    sample_name = 'sample' + args.sample
+    x1_train, x1_test, x2_train, x2_test = load_data_basic(args.path, sample=sample_name,
+                                                           batch_names=['batch1', 'batch3'], seed=42, panel=None,
+                                                           upsample=True)
+    gan = GAN('residual_gan_full_panels', x1_train.shape[1], args.loss_lambda)
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)
