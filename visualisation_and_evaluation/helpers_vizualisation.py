@@ -14,7 +14,7 @@ import os
 import scipy as sp
 
 
-def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures'):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures', random_state=345):
     ''' 
     Function to generate t-sne plot 
     inputs: 
@@ -24,13 +24,14 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         iter_ : fitting 
         pca_components: PCs
     '''
+    np.random.seed(random_state)
     Labels = list(data.index)
     if do_pca: 
-        pca = PCA(n_components=pca_components)
+        pca = PCA(n_components=pca_components, random_state=random_state)
         data = pca.fit_transform(data)
     for i in range(n_plots):
         perplexity_ = 10* (i + 1)
-        tsne = TSNE(n_components=2,verbose=1,perplexity=perplexity_,n_iter=iter_)
+        tsne = TSNE(n_components=2,verbose=1,perplexity=perplexity_,n_iter=iter_, random_state=random_state)
         X_tsne = tsne.fit_transform(data)
         Xf = pd.DataFrame(X_tsne)
         Xf.columns = ["t-sne1", "t-sne2"]
@@ -132,7 +133,7 @@ def plot_scores(data, xcol, ycol, title="Evaluation scores", save_as=None, folde
         handles, names = score_plot.get_legend_handles_labels()
         score_plot.legend(handles, names, bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     if save_as is not None:
-        plt.savefig(os.path.join(folder_name, save_as))
+        plt.savefig(os.path.join(folder_name, save_as), bbox_inches='tight')
         plt.close()
     else:
         score_plot
