@@ -1,4 +1,4 @@
-'''Inspired from this code and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
+'''Inspired from this https://github.com/eriklindernoren/Keras-GAN and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
 from __future__ import print_function, division
 
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation, Lambda
@@ -41,7 +41,7 @@ class GAN():
       1e3, 1e4, 1e5, 1e6]
         sigmas = tf.constant(sigmas, dtype = 'float64')
         self.sigmas =(tf.expand_dims(sigmas, 1))
-        self.intermed_dim = 20
+        self.intermed_dim = 40
         self.n_clusters = n_clusters
 
         x1 = Input(shape=(self.data_size,), name = 'x1')
@@ -134,8 +134,8 @@ class GAN():
 
         losses = {'autoencoder_x1': autoencoder_loss,
                   'discriminator': 'binary_crossentropy'}
-        loss_weights = {'autoencoder_x1': 80,
-                        'discriminator': 20}
+        loss_weights = {'autoencoder_x1': 0.80,
+                        'discriminator': 0.20}
         metrics = {'discriminator': 'accuracy',
                    'autoencoder_x1': [transfert_loss,
                                             reconstruction_loss]}
@@ -182,8 +182,19 @@ class GAN():
             os.makedirs(os.path.join(save_type, fname))
 
 
-        plot_model = {"epoch": [], "d_loss": [], "g_loss": [], "d_accuracy": [], "g_accuracy": [],
-                      "g_reconstruction_error": [], "g_loss_total": []}
+        plot_model = {
+            'epoch': [],
+            'Combined: loss': [],
+            'Combined: autoencoder_x1_loss': [],
+            'Combined: discriminator_loss': [],
+            'Combined: autoencoder_x1_transfert_loss': [],
+            'Combined: autoencoder_x1_reconstruction_loss': [],
+            'Combined: discriminator_accuracy': [],
+            'Discriminator: loss': [],
+            'Discriminator: accuracy': []
+        }
+
+
 
         x1_train = x1_train_df['gene_exp'].transpose()
         x2_train = x2_train_df['gene_exp'].transpose()
@@ -248,7 +259,8 @@ class GAN():
                 g_loss_list.append(g_loss)
                 d_loss_list.append(d_loss)
 
-            print('epoch start')
+            print('\n')
+            print('epoch {} start'.format(epoch))
             mask_clusters = make_mask_tensor(x1_train, x2_train, x1_labels, x2_labels)
             print('made mask')
             gen_x1 = self.fullGenerator.predict([x1_train, x2_train, mask_clusters])
@@ -263,15 +275,14 @@ class GAN():
             #print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
             #      (epoch, d_loss[0], 100 * d_loss[1],
             #       g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
-            print("/n /n ")
+
             for value, item in zip(g_loss, self.combined.metrics_names):
                 print("Combined: {} = {}".format(item, value))
-                plot_model["Combined: {}".format(item)] = value
+                plot_model["Combined: {}".format(item)].append(value)
 
             for value, item in zip(d_loss, self.discriminator.metrics_names):
                 print("Discriminator: {} = {}".format(item, value))
-                plot_model["Discriminator: {}".format(item)] = value
-
+                plot_model["Discriminator: {}".format(item)].append(value)
             plot_model["epoch"].append(epoch)
 
             # If at save interval => save generated image samples
@@ -303,8 +314,8 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
 
     pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5} # TODO Change reduce set
-    #base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
-    base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
+    base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
+    #base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
     path_data1_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
     path_data2_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
     cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')

@@ -88,7 +88,7 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
         dataset['cell_labels'] = cell_labels_resampled.flatten()
         dataset['gene_exp'] = gene_exp_resampled.transpose()
         dataset['cluster_labels'] = cluster_labels_resampled
-        print("dataset {} size used for modelling {}".format(filename, len(dataset['cell_labels']) ))
+        print(" DATASET {} size used for modelling {}".format(filename, len(dataset['cell_labels']) ))
         dataset_list.append(dataset)
     return dataset_list
 
