@@ -2,8 +2,6 @@
 from __future__ import print_function, division
 
 import tensorflow as tf
-from functools import partial
-import numpy as np
 
 """Domain Adaptation Loss Functions.
 The following domain adaptation loss functions are defined:
@@ -23,19 +21,7 @@ def compute_pairwise_distances(x, y):
     y: a tensor of shape [num_y_samples, num_features]
   Returns:
     a distance matrix of dimensions [num_x_samples, num_y_samples].
-  Raises:
-    ValueError: if the inputs do no matched the specified dimensions.
   """
-  # i = False
-  # if not i:
-  #   raise ValueError('Shape {}'.format(x.get_shape()))
-  #
-  # if not len(x.get_shape()) == len(y.get_shape()) == 2:
-  #   raise ValueError('Both inputs should be matrices.')
-  #
-  # if x.get_shape().as_list()[1] != y.get_shape().as_list()[1]:
-  #   raise ValueError('The number of features should be the same.')
-
   norm = lambda x: tf.reduce_sum(tf.square(x), 1)
 
   # By making the `inner' dimensions of the two matrices equal to 1 using
