@@ -56,7 +56,7 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
         if x1.shape[0] < x2.shape[0]:
             x1 = x1.sample(n=x2.shape[0], replace=True)
         elif x2.shape[0] < x1.shape[0]:
-            x2 = x1.sample(n=x1.shape[0], replace=True)
+            x2 = x2.sample(n=x1.shape[0], replace=True)
     x1 = normalize(x1)
     x2 = normalize(x2)
     x1_train, x1_test = train_test_split(x1, test_size=test_size, random_state=seed)
