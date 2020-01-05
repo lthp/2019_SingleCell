@@ -199,12 +199,12 @@ def extract_scores(path_dir, fname):
     outputs:
         pandas dataframe with scores and metainformation
     """
-    df = pd.read_csv(path_dir+fname, header=None, index_col=[0])
+    df = pd.read_csv(os.path.join(path_dir,fname), header=None, index_col=[0])
     # structure of saved scores from DL models: index=epoch, columns=[divergence_score, entropy_score, silhouette_score]
     df.columns = ['divergence_score', 'entropy_score', 'silhouette_score']
     df.index_name = ['epoch']
     df['silhouette_score_neg'] = -df.loc[:,'silhouette_score']
-    df['method'] = fname.split('scores_')[-1].split('_full')[0].replace('_',' ')
+    df['method'] = fname.split('scores_')[-1].split('_sample')[0].replace('_',' ')
     df['sample'] = fname.split('_')[-1].split('.csv')[0]
     return(df)
 

@@ -14,7 +14,7 @@ import os
 import scipy as sp
 
 
-def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures', random_state=345):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures', random_state=345, modelname=''):
     ''' 
     Function to generate t-sne plot 
     inputs: 
@@ -37,9 +37,9 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_a
         Xf.columns = ["t-sne1", "t-sne2"]
         Xf['labels'] = Labels
         sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1})
-        plt.title('Plot: t-SNE projection of the dataset perplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=15)
+        plt.title(modelname + ': t-SNEperplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=12)
         if save_as is not None:
-            plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)), bbox='tight')
+            plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)), bbox_inches='tight')
             plt.close()
         else:
             plt.show()
@@ -78,7 +78,7 @@ def plot_metrics(metrics, fname, autoencoder=False):
         plt.close()
 
 
-def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
+def plot_umap(data, random_state_=42, save_as=None, folder_name='figures', modelname=''):
     ''' 
     Function to generate Umap plot
     Inputs: 
@@ -97,7 +97,7 @@ def plot_umap(data, random_state_ = 42, save_as=None, folder_name='figures'):
         plt.scatter(tbl["comp 1"], tbl["comp 2"], c=colors[i], label = row[0], s=15, alpha=0.1)
         plt.xlabel('Umap 1', fontsize = 12)
         plt.ylabel('Umap 2', fontsize = 12)
-        plt.title('UMAP projection of the dataset with random state'.format(random_state_), fontsize=12)
+        plt.title(modelname + ': UMAP projection', fontsize=12)
     plt.legend(np.unique(df_embedding["ID"]))
     if save_as is not None:
         plt.savefig(os.path.join(folder_name, save_as))
