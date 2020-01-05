@@ -181,7 +181,7 @@ class GAN():
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
                                       dir_name='output_bottleneck')
-                # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, dir_name='figures_bottleneck')
+                save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, dir_name='figures_bottleneck')
 
         return plot_model
 
@@ -189,18 +189,11 @@ class GAN():
 if __name__ == '__main__':
     import os
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
-
-    # path = r'C:\Users\heida\Documents\ETH\Deep Learning\2019_DL_Class_old\code_ADAE_\chevrier_data_pooled_panels.parquet'
-    # path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_panels.parquet'
-
-    path = r'C:\Users\Public\PycharmProjects\deep\Legacy_2019_DL_Class\data\chevrier_data_pooled_full_panels.parquet'
-    x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample='sample75', batch_names=['batch1', 'batch3'],
-                                                           seed=42, panel=None)
-    # x1_train, x1_test, x2_train, x2_test = load_data_cytof(path, patient_id='rcc7', n=10000)
-
-    # path = os.getcwd()
-    # path = path + '/toy_data_gamma_small.parquet'  # '/toy_data_gamma_large.parquet'
-    # x1_train, x1_test, x2_train, x2_test = load_data_basic(path, patient='sample1', batch_names=['batch1', 'batch2'],
-    #                                                       seed=42, n_cells_to_select=0)
-    gan = GAN(x1_train.shape[1])
-    gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)
+    path = '..\data\chevrier_samples_5_65_75.parquet'
+    samples = ['sample5', 'sample65', 'sample75']
+    for s in samples:
+        x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample=s,
+                                                               batch_names=['batch1', 'batch3'],
+                                                               seed=42, panel=None)
+        gan = GAN(x1_train.shape[1])
+        gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)
