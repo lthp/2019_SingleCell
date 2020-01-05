@@ -101,6 +101,22 @@ def generate_raw_plots(epoch, x1, x2, fname, dir_name='figures'):
               save_as=os.path.join(fname, fname + '_umap_gx1-x1_epoch' + str(epoch)),
               folder_name=dir_name, modelname=fname + ' x1-x2')
 
+def generate_raw_plots_celltypes(epoch, x1, x2, fname, dir_name='figures'):
+    if not os.path.isdir(os.path.join(dir_name, fname)):
+        os.makedirs(os.path.join(dir_name, fname))
+
+    cells_x1 = [i.split('_')[3][8:].split('.')[0] for i in x1.index]
+    cells_x2 = [i.split('_')[3][8:].split('.')[0] for i in x2.index]
+
+    x1_plot = x1.copy()
+    x2_plot = x2.copy()
+    x1_plot.index = cells_x1
+    x2_plot.index = cells_x2
+
+    plot_tsne(pd.concat([x1_plot, x2_plot]), do_pca=True, n_plots=1, iter_=500,
+              pca_components=min(x1.shape[1], 20),
+              save_as=os.path.join(fname, fname + '_tsne_x1-x2_epoch' + str(epoch)), folder_name=dir_name,
+              modelname=fname + ' x1-x2')
 
 def plot_batches():
     path = r'C:\Users\heida\Documents\ETH\Deep Learning\final_plots'
@@ -138,6 +154,7 @@ def plot_raw():
     dtype = 'chevrier'
     df_dir = os.path.join(path, dtype, 'dataframes_for_plotting')
     fig_dir = os.path.join(path, dtype, 'final_plots2')
+    fig_dir_celltypes = os.path.join(path, dtype, 'final_plots_cell_types')
     samples = ['5', '65', '75']
 
     for sample in samples:
@@ -149,6 +166,7 @@ def plot_raw():
         if not os.path.isdir(os.path.join(fig_dir, modelname)):
             os.makedirs(os.path.join(fig_dir, modelname))
         generate_raw_plots(0, x1_train_df, x2_train_df, fname=modelname, dir_name=fig_dir)
+        generate_raw_plots_celltypes(0, x1_train_df, x2_train_df, fname=modelname, dir_name=fig_dir_celltypes)
 
     dtype = os.path.join('simulated', 'main')
     df_dir = os.path.join(path, dtype, 'dataframes_for_plotting')
@@ -196,6 +214,6 @@ def plot_cell_types():
             generate_cell_type_plots(epoch, x1_train_df, x2_train_df, gx1, fname=modelname,  dir_name=fig_dir)
 
 if __name__ == '__main__':
-    plot_batches()
+    #plot_batches()
     plot_raw()
-    plot_cell_types()
+    #plot_cell_types()
