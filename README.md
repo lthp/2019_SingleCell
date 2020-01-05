@@ -12,7 +12,7 @@ Run the wider diamond shape model on all the 3 samples of the real-world data vi
 Run the flatter diamond shape model on all the 3 samples of the real-world data via               
                  python gan_autoencoder/autoencoder_gan_reconstructionloss_bottleneck.py
 
-2) Run the vanilla gan model on all the 3 sample of the real world data via
+2) Vanilla GAN: Run the vanilla gan model on all the 3 sample of the real world data via
                 python vanilla_gan/gan_batches_optimized.py
 
 3) Residual GANs:
