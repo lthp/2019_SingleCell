@@ -26,7 +26,7 @@ from gan_autoencoder.helpers_vizualisation import plot_umap
 
 from gan_autoencoder.data_loader import load_data_basic, normalize
 
-from gan_autoencoder.autoencoder_gan import GAN
+from gan_autoencoder.autoencoder_gan_reconstructionloss import GAN
 
 path = os.getcwd()
 path = path+'/toy_data_gamma_small.parquet' # '/toy_data_gamma_large.parquet'

@@ -12,6 +12,7 @@ import pandas as pd
 from helpers_vizualisation import plot_tsne
 import os
 
+
 class AE():
     def __init__(self, n_markers=30):
         self.data_size = n_markers
@@ -22,7 +23,6 @@ class AE():
         self.generator.compile(loss='mean_absolute_error',
             optimizer=optimizer)
 
-        
     def build_generator(self):
         model = Sequential()
         model.add(Dense(30, input_dim=self.data_size))
@@ -49,7 +49,6 @@ class AE():
 
         return Model(x1, x1_gen)
 
-    
     def train(self, x1_train_df, x1_test_df, epochs, batch_size=128, sample_interval=50):
         x1_train = x1_train_df.values
         x1_test = x1_test_df.values
@@ -91,7 +90,6 @@ class AE():
         gx_df = pd.DataFrame(data=gx, columns=x.columns, index=x.index + '_transformed')
         return gx_df
 
-                
     def sample_x2(self, epoch, x1):
         r, c = 5, 5
         gx = self.generator.predict(x1)
