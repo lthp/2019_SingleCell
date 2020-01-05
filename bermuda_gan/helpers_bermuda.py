@@ -29,10 +29,6 @@ def loader(dataset_file_list, take_log, oversample, standardization, scaling, se
     classes_per_dataset = []
     for filename in dataset_file_list:
         df = pd.read_table(filename, header=None, nrows = 3, sep = separator)
-        #if reduce_set is not None:
-        #   df = df.set_index([0])
-        #   df = df.iloc[:,reduce_set]
-        #   df = df.reset_index()
         dat = df[df.columns[1:]].values
         cluster_labels = dat[2, :].astype(int)
         classes_per_dataset.append(len(np.unique(cluster_labels)))

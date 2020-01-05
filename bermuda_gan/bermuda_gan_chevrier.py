@@ -1,6 +1,7 @@
-'''Inspired from this https://github.com/eriklindernoren/Keras-GAN and Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6 '''
+'''Inspired from  Bermuda paper https://genomebiology.biomedcentral.com/articles/10.1186/s13059-019-1764-6
+but was re-implemented in Keras
+and architecture was adapted'''
 from __future__ import print_function, division
-
 from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, Dropout, LeakyReLU, Activation, Lambda
 from tensorflow.keras.layers import BatchNormalization, Activation, ZeroPadding2D
 from tensorflow.keras.models import Sequential, Model
@@ -8,27 +9,16 @@ from tensorflow.keras.optimizers import Adam
 from sklearn.model_selection import StratifiedShuffleSplit
 import tensorflow as tf
 tf.keras.backend.set_floatx('float64')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from datetime import datetime
 import sys
-
 sys.path.append("..")
-sys.path.append("/cluster/home/prelotla/GitHub/projects2019_DL_Class")
-
 from helpers_bermuda import pre_processing, read_cluster_similarity, make_mask_tensor
-from AE_bermuda import Autoencoder
 from MMD_bermuda import maximum_mean_discrepancy
 from info_on_checkpoint import save_info_bermuda, save_plots
 
 
-
-'''
-This model is an optimized gan where the generator is an autoencoder with reconstruction loss, and the structure of 
-the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and has batch norm layers. 
-This model seems to be performing good.
-'''
 
 seed = 12345
 
@@ -88,7 +78,7 @@ class GAN():
             return r_cost
 
         def reconstruction_loss(x1, gen_x1):
-            Loss =  calculate_reconstruction_loss(gen_x1, x1) + calculate_reconstruction_loss(gen_x2, x2) #TODO AM I USING THIS GUY?????
+            Loss =  calculate_reconstruction_loss(gen_x1, x1) + calculate_reconstruction_loss(gen_x2, x2)
             return Loss
 
         def transfert_loss(x1, gen_x1):
@@ -113,10 +103,6 @@ class GAN():
             return Loss
 
         self.fullGenerator = Model(inputs=[x1, x2, mask_clusters], outputs=gen_x1, name = 'fullGenerator')
-        #self.fullGenerator.compile(optimizer=self.optimizer, loss= autoencoder_loss ,
-        #                            experimental_run_tf_function=False,
-        #                            metrics=[transfert_loss,
-        #                                     reconstruction_loss]) # experimental_run_tf_function explained in https://github.com/tensorflow/probability/issues/519
 
         #Build and compile the discriminator
         self.discriminator = self.build_discriminator()
@@ -128,7 +114,6 @@ class GAN():
         # The discriminator takes generated data as input and determines validity
 
         outputs = self.discriminator(self.fullGenerator([x1, x2, mask_clusters]))
-        #validity = self.discriminator(gen_x1)
 
         self.combined = Model(inputs=[x1, x2, mask_clusters], outputs= [gen_x1, outputs]) #passes the gen_x1 output into validity
 
@@ -144,11 +129,6 @@ class GAN():
                               experimental_run_tf_function=False)
 
     ##############################################
-
-
-    def build_generator(self):
-        model = Autoencoder(20, self.data_size )
-        return model
 
     def build_discriminator(self):
         model = Sequential()
@@ -167,7 +147,7 @@ class GAN():
         x2 = Input(shape=self.data_size)
         validity = model(x2)
         return Model(x2, validity, name='discriminator')
-####################
+        ##############################################
 
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50, cell_label_path = None, output_path = None ):
@@ -202,7 +182,7 @@ class GAN():
         x2_labels = x2_train_df['cluster_labels']
 
         # Adversarial ground truths
-        valid = np.ones((batch_size, 1))  # TODO check: assume normalisation between zero and 1
+        valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
         valid_full = np.ones((len(x1_train), 1))
@@ -253,7 +233,7 @@ class GAN():
                 # ---------------------
 
                 # Train the generator (to have the discriminator label samples as valid)
-                g_loss = self.combined.train_on_batch([x1, x2, mask_clusters], [x1, valid]) #TODO Add the generator loss with latent space, inside or outside?? Need generator with two inputs and custom loss (First = take just the suum of the losses
+                g_loss = self.combined.train_on_batch([x1, x2, mask_clusters], [x1, valid])
 
 
                 g_loss_list.append(g_loss)
@@ -262,19 +242,10 @@ class GAN():
             print('\n')
             print('epoch {} start'.format(epoch))
             mask_clusters = make_mask_tensor(x1_train, x2_train, x1_labels, x2_labels)
-            print('made mask')
             gen_x1 = self.fullGenerator.predict([x1_train, x2_train, mask_clusters])
-            print('made generator predict')
             g_loss = self.combined.test_on_batch([x1_train, x2_train, mask_clusters], [x1_train, valid_full]) #
-            print('made combined test on batch ')
             d_loss = self.discriminator.test_on_batch(np.concatenate((x2_train, gen_x1)),
                                                       np.concatenate((valid_full, fake_full)))
-            print('made discriminator test on batch')
-
-            # Plot the progress
-            #print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f, mae: %.2f, xentropy: %f, acc.: %.2f%%]" %
-            #      (epoch, d_loss[0], 100 * d_loss[1],
-            #       g_loss[0], g_loss[1], g_loss[2], g_loss[3] * 100))
 
             for value, item in zip(g_loss, self.combined.metrics_names):
                 print("Combined: {} = {}".format(item, value))
@@ -288,7 +259,6 @@ class GAN():
             # If at save interval => save generated image samples
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
-                # gen_x1 = self.generator.predict(x1_train_df)
 
                 # self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv')) # save model
                 save_info_bermuda.save_dataframes(epoch, x1_train, x2_train, gen_x1, fname, dir_name = frames_) # save dataframe
@@ -312,10 +282,9 @@ if __name__ == '__main__':
 
     # IMPORTANT PARAMETER
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
-
-    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5} # TODO Change reduce set
-    base_dir = '/cluster/work/grlab/projects/tmp_laurie/dl_data'
-    #base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
+    # "Reduce set controls the sub-sampling"
+    pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5}
+    base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
     path_data1_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
     path_data2_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
     cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
@@ -328,6 +297,6 @@ if __name__ == '__main__':
     n_clusters = max(np.concatenate( [x1_train['cluster_labels'], x2_train['cluster_labels'] ]))
 
     gan = GAN(len(x1_train['gene_sym']), cluster_pairs, n_clusters = n_clusters ) #
-    gan.train(x1_train, x2_train, epochs=1000, batch_size=40, sample_interval=1, cell_label_path = equiv_table_path_cells, output_path = output_path)#TODO change sample intervals
+    gan.train(x1_train, x2_train, epochs=1000, batch_size=40, sample_interval=50, cell_label_path = equiv_table_path_cells, output_path = output_path)
 
 

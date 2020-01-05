@@ -61,6 +61,8 @@ def load_data_basic(path, sample='sample1', batch_names=['batch1', 'batch2'],
     x2 = normalize(x2)
     x1_train, x1_test = train_test_split(x1, test_size=test_size, random_state=seed)
     x2_train, x2_test = train_test_split(x2, test_size=test_size, random_state=seed)
+    print('x1 shape', x1_train.shape)
+    print('x2 shape', x1_train.shape)
     return x1_train, x1_test, x2_train, x2_test
 
 
