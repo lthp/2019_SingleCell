@@ -14,7 +14,7 @@ import os
 import scipy as sp
 
 
-def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=20, save_as=None, folder_name='figures', random_state=345, modelname=''):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=11, save_as=None, folder_name='figures', random_state=345, modelname=''):
     ''' 
     Function to generate t-sne plot 
     inputs: 
