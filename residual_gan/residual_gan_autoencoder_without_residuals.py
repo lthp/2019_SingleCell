@@ -24,7 +24,7 @@ the generator autoencoder is diamond shaped (not with a bottleneck layer) AND ha
 
 
 class GAN():
-    def __init__(self, modelname, n_markers=30, loss_lambda=0.9):
+    def __init__(self, modelname, n_markers=30, loss_lambda=0.8):
         self.modelname = modelname
         self.data_size = n_markers
         self.loss_lambda = loss_lambda
@@ -110,8 +110,7 @@ class GAN():
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        model_description = '_' + self.modelname + '_lambda' + str(self.loss_lambda) + '_' + \
-                            x1_train_df.index[0].split('_')[1]
+        model_description = '_' + self.modelname + x1_train_df.index[0].split('_')[1]
         fname = time + model_description
         os.makedirs(os.path.join('figures_' + self.modelname, fname))
         os.makedirs(os.path.join('output_' + self.modelname, fname))
@@ -195,9 +194,9 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
+               # self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
-                                          dir_name='output_'+self.modelname)
+                                          dir_name='output_'+self.modelname, model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
                                       dir_name='output_'+self.modelname, model_description=model_description)
                 #save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname, umap=True,
@@ -219,10 +218,10 @@ if __name__ == '__main__':
 
     if args.toy:
         batch_names = ['batch1', 'batch2']
-        modelname = 'residual_gan_wo_residuals_full_panels_toy'
+        modelname = 'residual_gan_wo_residuals_toy'
     else:
         batch_names = ['batch1', 'batch3']
-        modelname = 'residual_gan_wo_residuals_full_panels_chevrier'
+        modelname = 'residual_gan_wo_residuals_full'
 
     x1_train, x1_test, x2_train, x2_test = load_data_basic(args.path, sample=sample_name,
                                                            batch_names=batch_names, seed=42, panel=None,

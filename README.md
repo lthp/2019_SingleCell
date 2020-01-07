@@ -15,7 +15,25 @@ Run the flatter diamond shape model on all the 3 samples of the real-world data 
 2) Vanilla GAN: Run the vanilla gan model on all the 3 sample of the real world data via
                 python vanilla_gan/gan_batches_optimized.py
 
-3) Residual GANs:
+3) Residual GANs: To run the residual gan with skip connections 
+```
+python residual_gan/run_residuals.py
+```
+To run the residual gan without skip connections
+```
+python residual_gan/run_residuals_wo_res.py
+```
+To run both versions on the cluster
+```
+residual_gan_chevrier_cluster.sh
+```
+
+4) Evaluation: Move the score files of the models from their respective "output_<modelname>" files and 
+into "eval_scores". Run the "notebooks/find_best_epochs.ipynb" notebook to get a table of the scores and 
+see the best performing epoch for each model. For each model, copy the gx1 of the best epoch along with gx1,
+x1 and x2 of epoch 0 to the "final_plots/chevrier/dataframes_for_plotting" folder
+
+
 
 All of the runs will output for every model on every 50th epoch, 
 the divergence score, entropy score, and silhoutte score, 
