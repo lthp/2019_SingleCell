@@ -31,16 +31,11 @@ residual_gan_chevrier_cluster.sh
 4) Evaluation: Move the score files of the models from their respective "output_<modelname>" files and 
 into "eval_scores". Run the "notebooks/find_best_epochs.ipynb" notebook to get a table of the scores and 
 see the best performing epoch for each model. For each model, copy the gx1 of the best epoch along with gx1,
-x1 and x2 of epoch 0 to the "final_plots/chevrier/dataframes_for_plotting" folder
+x1 and x2 of epoch 0 to the "final_plots/chevrier/dataframes_for_plotting" folder. To generate the tsne plots 
+colored by batch and cell type, run "python visualisation_and_evaluation/generate_plots_chevrier.py"
 
 
 
 All of the runs will output for every model on every 50th epoch, 
 the divergence score, entropy score, and silhoutte score, 
 as well as the raw data-frames, values of the losses, and tsne and umap plots.
-
-To calculate combined scores of best epoch for comparison of models, 
-run the file evaluation.ipynb (under the notebooks directory). 
-
-
-
