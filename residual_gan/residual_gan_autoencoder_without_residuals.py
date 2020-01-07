@@ -110,7 +110,7 @@ class GAN():
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
         time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        model_description = '_' + self.modelname + x1_train_df.index[0].split('_')[1]
+        model_description = self.modelname + x1_train_df.index[0].split('_')[1]
         fname = time + model_description
         os.makedirs(os.path.join('figures_' + self.modelname, fname))
         os.makedirs(os.path.join('output_' + self.modelname, fname))
@@ -194,7 +194,7 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-               # self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
+                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
                                           dir_name='output_'+self.modelname, model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,

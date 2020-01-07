@@ -16,8 +16,10 @@ This model is an optimized gan where the generator is an autoencoder with recons
 the generator autoencoder is hour-glass shaped ( with a bottleneck layer) and has batch norm layers. 
 This model seems to be performing good.
 '''
+
 class GAN():
-    def __init__(self, n_markers=30):
+    def __init__(self, n_markers=30, modelname=''):
+        self.modelname = modelname
         self.data_size = n_markers
         optimizer = Adam(0.0002, 0.5)
 
@@ -87,6 +89,7 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
+        model_description = self.modelname + '_' + x1_train_df.index[0].split('_')[1]
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         # fname = '_ganautobottlebatch_loss0.8_full_corrupsample' + x1_train_df.index[0].split('.')[0]
         # fname = time + fname
@@ -178,9 +181,10 @@ class GAN():
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
                 self.generator.save(os.path.join('models_bottleneck', fname, 'generator' + str(epoch) + '.csv'))
-                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck')
+                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_bottleneck',
+                                          model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
-                                      dir_name='output_bottleneck')
+                                      dir_name='output_bottleneck', model_description=model_description)
                 save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname, dir_name='figures_bottleneck')
 
         return plot_model
@@ -191,9 +195,10 @@ if __name__ == '__main__':
     from loading_and_preprocessing.data_loader import load_data_basic, load_data_cytof
     path = '..\data\chevrier_samples_5_65_75.parquet'
     samples = ['sample5', 'sample65', 'sample75']
+    modelname = 'gan_autoencoder_diamond_narrower_full'
     for s in samples:
         x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample=s,
                                                                batch_names=['batch1', 'batch3'],
                                                                seed=42, panel=None)
-        gan = GAN(x1_train.shape[1])
+        gan = GAN(x1_train.shape[1], modelname)
         gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)

@@ -17,8 +17,9 @@ the generator autoencoder is diamond shaped (not with a bottleneck layer) AND ha
 
 
 class GAN():
-    def __init__(self, n_markers=30):
+    def __init__(self, n_markers=30, modelname=''):
         self.data_size = n_markers
+        self.modelname = modelname
         optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
@@ -104,6 +105,7 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
+        model_description = self.modelname + '_' + x1_train_df.index[0].split('_')[1]
         fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         # fname = '_ganautodiambatch_loss0.8_full_upsample' + x1_train_df.index[0].split('.')[0]
         # fname = time + fname
@@ -195,9 +197,10 @@ class GAN():
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
                 self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
-                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname, dir_name='output_dimond_batchnorm')
+                save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
+                                          dir_name='output_dimond_batchnorm', model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
-                                      dir_name='output_dimond_batchnorm')
+                                      dir_name='output_dimond_batchnorm', model_description=model_description)
                 save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname,
                                          dir_name='figures_dimond_batchnorm')
 
@@ -208,9 +211,10 @@ if __name__ == '__main__':
 
     path = '..\data\chevrier_samples_5_65_75.parquet'
     samples = ['sample5', 'sample65', 'sample75']
+    modelname = 'gan_autoencoder_diamond_wider_full'
     for s in samples:
         x1_train, x1_test, x2_train, x2_test = load_data_basic(path, sample=s,
                                                                batch_names=['batch1', 'batch3'],
                                                                seed=42, panel=None)
-        gan = GAN(x1_train.shape[1])
+        gan = GAN(x1_train.shape[1], modelname)
         gan.train(x1_train, x2_train, epochs=3000, batch_size=64, sample_interval=50)

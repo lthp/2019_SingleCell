@@ -194,7 +194,7 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                #self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
+                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
                                           dir_name='output_'+self.modelname, model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
@@ -225,6 +225,6 @@ if __name__ == '__main__':
 
     x1_train, x1_test, x2_train, x2_test = load_data_basic(args.path, sample=sample_name,
                                                            batch_names=batch_names, seed=42, panel=None,
-                                                           upsample=True, n_cells_to_select=1000)
+                                                           upsample=True)
     gan = GAN(modelname, x1_train.shape[1], args.loss_lambda)
     gan.train(x1_train, x2_train, epochs=1000, batch_size=64, sample_interval=50)

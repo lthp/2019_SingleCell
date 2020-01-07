@@ -2,7 +2,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(sys.path[0]))
-from residual_gan_autoencoder_without_residuals import GAN
+from residual_gan.residual_gan_autoencoder_without_residuals import GAN
 from loading_and_preprocessing.data_loader import load_data_basic
 loss_lambda = 0.8
 path = '..\data\chevrier_samples_5_65_75.parquet'
