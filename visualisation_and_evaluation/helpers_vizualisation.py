@@ -14,7 +14,8 @@ import os
 import scipy as sp
 
 
-def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=11, save_as=None, folder_name='figures', random_state=345, modelname=''):
+def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=11, save_as=None, folder_name='figures',
+              random_state=345, modelname='', palette=None, legend=True):
     ''' 
     Function to generate t-sne plot 
     inputs: 
@@ -36,7 +37,8 @@ def plot_tsne(data, do_pca=True, n_plots=2, iter_=500, pca_components=11, save_a
         Xf = pd.DataFrame(X_tsne)
         Xf.columns = ["t-sne1", "t-sne2"]
         Xf['labels'] = Labels
-        sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1})
+        sns.lmplot("t-sne1", "t-sne2",hue="labels",data=Xf, fit_reg=False, scatter_kws={'alpha': 0.1}, palette=palette,
+                   legend=legend)
         plt.title(modelname + ': t-SNEperplexity = {}, iter = {}'.format(perplexity_, iter_), fontsize=12)
         if save_as is not None:
             plt.savefig(os.path.join(folder_name, save_as+'_p'+str(perplexity_)), bbox_inches='tight')
