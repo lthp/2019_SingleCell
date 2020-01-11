@@ -12,6 +12,7 @@ from visualisation_and_evaluation.helpers_vizualisation import plot_tsne, plot_m
 import numpy as np
 import pandas as pd
 from datetime import datetime
+import os
 
 '''
 This model has the exact same structure and optimizations as "autoencoder_gan_reconstructionloss", 
@@ -108,13 +109,12 @@ class GAN():
         return Model(x2, validity)
 
     def train(self, x1_df, x2_df, epochs, batch_size=128, sample_interval=50):
+        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         model_description = self.modelname + '_' + x1_df.index[0].split('_')[1]
-        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        #fname = '_ganvanilladiamondbatch_full_corrupsample' + x1_df.index[0].split('.')[0]
-        #fname = time + fname
-        os.makedirs(os.path.join('figures', fname))
-        os.makedirs(os.path.join('output', fname))
-        os.makedirs(os.path.join('models', fname))
+        fname = time + model_description
+        os.makedirs(os.path.join('figures_' + self.modelname, fname))
+        os.makedirs(os.path.join('output_' + self.modelname, fname))
+        os.makedirs(os.path.join('models_' + self.modelname, fname))
         plot_model = {"epoch": [], "d_loss": [], "g_loss": []}
         training_metrics = {"epoch": [], "d_loss": [], "d_accuracy": [], "g_loss": []}
 
@@ -171,11 +171,13 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_df)
-                save_info.save_dataframes(epoch, x1_df, x2_df, gx1, fname, dir_name='output',
-                                          model_description=model_description)
-                save_info.save_scores(epoch, x1_df, x2_df, gx1, training_metrics, fname, dir_name='output',
-                                      model_description=model_description)
-                save_plots.plot_progress(epoch, x1_df, x2_df, gx1, plot_model, fname,dir_name='figures')
+                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
+                save_info.save_dataframes(epoch, x1_df, x2_df, gx1, fname,
+                                          dir_name='output_' + self.modelname, model_description=model_description)
+                save_info.save_scores(epoch, x1_df, x2_df, gx1, training_metrics, fname,
+                                      dir_name='output_' + self.modelname, model_description=model_description)
+                # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname,
+                # dir_name='output_' + self.modelname)
 
 
 if __name__ == '__main__':

@@ -6,16 +6,24 @@ A link to the datasets used are provided in the hand-in.
 Place the dataset in a subfolder "/data", so everything will run smoothly.
 
 To run the models described in the paper:
-1) Autoencoder GANs: 
-Run the wider diamond shape model on all the 3 samples of the real-world data via
-                 python gan_autoencoder/diamond_batchnorm.py
-Run the flatter diamond shape model on all the 3 samples of the real-world data via               
-                 python gan_autoencoder/autoencoder_gan_reconstructionloss_bottleneck.py
+First install all dependencies needed via the command
+```
+conda env create -f residual_gan/environment_residualgan.yml
+```
+Then run the following:
+Autoencoder GANs: 
+Run both the wider diamond and narrower diamond shaped models on tall of the 3 samples of the real world
+data via:
+```
+python gan_autoencoder/run_autoencoders.py
+```
 
-2) Vanilla GAN: Run the vanilla gan model on all the 3 sample of the real world data via
-                python vanilla_gan/gan_batches_optimized.py
+Vanilla GAN: Run the vanilla gan model on all the 3 sample of the real world data via
+```
+python vanilla_gan/run_vanilla.py
+```
 
-3) Residual GANs: To run the residual gan with skip connections 
+Residual GANs: To run the residual gan with skip connections 
 ```
 python residual_gan/run_residuals.py
 ```
@@ -28,7 +36,8 @@ To run both versions on the cluster
 residual_gan_chevrier_cluster.sh
 ```
 
-4) Evaluation: Move the score files of the models from their respective "output_<modelname>" files and 
+Evaluation: 
+Move the score files of the models from their respective "output_<modelname>" files and 
 into "eval_scores". Run the "notebooks/find_best_epochs.ipynb" notebook to get a table of the scores and 
 see the best performing epoch for each model. For each model, copy the gx1 of the best epoch along with gx1,
 x1 and x2 of epoch 0 to the "final_plots/chevrier/dataframes_for_plotting" folder. To generate the tsne plots 
