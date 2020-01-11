@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(sys.path[0]))
 from residual_gan.residual_gan_autoencoder_without_residuals import GAN
 from loading_and_preprocessing.data_loader import load_data_basic
 loss_lambda = 0.8
-path = '..\data\chevrier_samples_5_65_75.parquet'
+path = 'data\chevrier_samples_5_65_75.parquet'
 sample_names = ['sample5', 'sample65', 'sample75']
 batch_names = ['batch1', 'batch3']
 modelname = 'residual_gan_wo_res_full'

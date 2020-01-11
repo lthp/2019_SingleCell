@@ -105,13 +105,12 @@ class GAN():
         return Model(x2, validity, name='discriminator')
 
     def train(self, x1_train_df, x2_train_df, epochs, batch_size=128, sample_interval=50):
+        time = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
         model_description = self.modelname + '_' + x1_train_df.index[0].split('_')[1]
-        fname = datetime.now().strftime("%d-%m-%Y_%H.%M.%S")
-        # fname = '_ganautodiambatch_loss0.8_full_upsample' + x1_train_df.index[0].split('.')[0]
-        # fname = time + fname
-        os.makedirs(os.path.join('figures_dimond_batchnorm', fname))
-        os.makedirs(os.path.join('output_dimond_batchnorm', fname))
-        os.makedirs(os.path.join('models_dimond_batchnorm', fname))
+        fname = time + model_description
+        os.makedirs(os.path.join('figures_' + self.modelname, fname))
+        os.makedirs(os.path.join('output_' + self.modelname, fname))
+        os.makedirs(os.path.join('models_' + self.modelname, fname))
 
         training_metrics = {"epoch": [], "d_loss": [], "d_accuracy": [], "g_loss": []}
 
@@ -196,13 +195,13 @@ class GAN():
             if epoch % sample_interval == 0:
                 print('generating plots and saving outputs')
                 gx1 = self.generator.predict(x1_train_df)
-                self.generator.save(os.path.join('models', fname, 'generator' + str(epoch) + '.csv'))
+                self.generator.save(os.path.join('models_' + self.modelname, fname, 'generator' + str(epoch)))
                 save_info.save_dataframes(epoch, x1_train_df, x2_train_df, gx1, fname,
-                                          dir_name='output_dimond_batchnorm', model_description=model_description)
+                                          dir_name='output_' + self.modelname, model_description=model_description)
                 save_info.save_scores(epoch, x1_train_df, x2_train_df, gx1, training_metrics, fname,
-                                      dir_name='output_dimond_batchnorm', model_description=model_description)
-                save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname,
-                                         dir_name='figures_dimond_batchnorm')
+                                      dir_name='output_' + self.modelname, model_description=model_description)
+                # save_plots.plot_progress(epoch, x1_train_df, x2_train_df, gx1, plot_model, fname,
+                                         # dir_name='output_' + self.modelname)
 
 
 if __name__ == '__main__':
