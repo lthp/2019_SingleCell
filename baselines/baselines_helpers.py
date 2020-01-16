@@ -1,25 +1,14 @@
 import numpy as np
 import pandas as pd
-#import pyarrow as pa
-#import pyarrow.parquet as pq
 import os 
-#import glob
 import sys
-#from FlowCytometryTools import FCMeasurement
-#from collections import Counter
-#import pdb
-#import matplotlib.pyplot as plt
-#import matplotlib.gridspec as gridspec
-#import seaborn as sns
-#import xlrd
-#from collections import Counter
-#from sklearn import preprocessing
 import scipy as sp
 import anndata
 import scanpy as sc
 
 sys.path.append(os.path.dirname(os.getcwd()))
 from visualisation_and_evaluation.helpers_eval import cal_UMAP, entropy, cal_entropy, evaluate_scores, separate_metadata
+from loading_and_preprocessing.data_loader import load_data_basic
 
 def scale(x):
     p99 = np.percentile(x,99)
@@ -160,4 +149,28 @@ def eval_batch_sample(adata_dict, random_state=345, umap_dim=50, div_ent_dim=50,
     return(eval_batch)
 
 
+def load_sample_data(path, samples_selected=['sample1'], batch_names= ['batch1', 'batch2']):
+    """
+    Function to load and merge data for samples and convert it to a desired format
+    """
+    df_full = None
+    for sample in samples_selected:
+        x1_train, x1_test, x2_train, x2_test = load_data_basic(path,
+                                     sample=sample, batch_names=batch_names, panel=None)
+
+        tmp_  = pd.concat([x1_train, x2_train])
+        if df_full is None:
+            df_full = tmp_
+        else:
+            df_full = pd.concat([df_full, tmp_], axis = 0 )
+
+    metadata_batch = [ i.split('_')[0] for i in df_full.index]
+    metadata_cell = [ i.split('_')[-1] for i in df_full.index]
+    metadata_sample = [ i.split('_')[1] for i in df_full.index]
+    df_full['metadata_batch'] = metadata_batch
+    df_full['metadata_celltype'] = metadata_cell
+    df_full['metadata_sample'] = metadata_sample
+    df_full = df_full.dropna(axis=1)
+    df_full = df_full.reset_index(drop = True)
+    return(df_full)
 

@@ -1,12 +1,3 @@
-
-# coding: utf-8
-
-# ### README
-# A notebook to compute evaluation scores for raw data as well as bacth corrected using besline methods: regressing batch effect out, ComBat and mnnCorrect. The workflow is run for both, the simulated and real-world data.
-
-# In[2]:
-
-
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -30,9 +21,6 @@ import scanpy as sc
 sys.path.append(os.path.dirname(os.getcwd()))
 from visualisation_and_evaluation.helpers_eval import cal_UMAP, entropy, cal_entropy, evaluate_scores, separate_metadata
 from baselines.baselines_helpers import scale, convert_to_ann, sample_cells, batch_correct, prep_anndata_for_eval, eval_batch_sample 
-
-
-# In[ ]:
 
 
 def wrapper_raw(adata_full, samples_selected, save_path, suffix='full'):
@@ -65,7 +53,8 @@ def wrapper_mnn(adata_full, samples_selected, save_path, suffix='full'):
     # mnnCorrect
     adata_batch_mnn = dict()
     max_cells = 1000
-    random_state_list = [123465, 87654, 289, 243, 1234]
+    #random_state_list = [123465, 87654, 289, 243, 1234]
+    random_state_list = [19885, 1998, 8768, 26998, 243]
     eval_random_state = dict()
     for random_state in random_state_list:
         for sample in samples_selected:
@@ -90,5 +79,4 @@ def wrapper_mnn(adata_full, samples_selected, save_path, suffix='full'):
     eval_full_batch_mnn_mean['sample'] = eval_full_batch_mnn_mean.index
     eval_full_batch_mnn_mean.to_csv(save_path+'scores_mnn_'+suffix+'_mean.csv')
     return(eval_full_batch_mnn_mean)
-
 
