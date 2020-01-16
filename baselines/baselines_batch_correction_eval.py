@@ -21,44 +21,44 @@ from visualisation_and_evaluation.helpers_eval import cal_UMAP, entropy, cal_ent
 from baselines.baselines_helpers import scale, convert_to_ann, sample_cells, batch_correct, prep_anndata_for_eval, eval_batch_sample, load_sample_data
 from baselines.baselines_wrappers import wrapper_raw, wrapper_reg, wrapper_combat, wrapper_mnn
 
-# ####################  simulated data  ###################
-# ######  all cell populations shared  ######
-# data_path = '../data/toy_data_gamma_w_index.parquet'
-# save_path = '../eval_scores/'
-# df_full = load_sample_data(data_path, samples_selected=['sample1'], batch_names= ['batch1', 'batch2'])
-# samples_selected = sp.unique(df_full['metadata_sample'])
-# adata_full = convert_to_ann(df_full, sample_col_name = "metadata_sample", batch_col_name="metadata_batch",
-#                   celltype_col_name = 'metadata_celltype')
-# adata_full.obs_names_make_unique()
-# suffix = 'toy'
-# eval_full_raw = wrapper_raw(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_reg = wrapper_reg(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_combat = wrapper_combat(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_mnn_mean = wrapper_mnn(adata_full, samples_selected, save_path, suffix)
+####################  simulated data  ###################
+######  all cell populations shared  ######
+data_path = '../data/toy_data_gamma_w_index.parquet'
+save_path = '../eval_scores/'
+df_full = load_sample_data(data_path, samples_selected=['sample1'], batch_names= ['batch1', 'batch2'])
+samples_selected = sp.unique(df_full['metadata_sample'])
+adata_full = convert_to_ann(df_full, sample_col_name = "metadata_sample", batch_col_name="metadata_batch",
+                  celltype_col_name = 'metadata_celltype')
+adata_full.obs_names_make_unique()
+suffix = 'toy'
+eval_full_raw = wrapper_raw(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_reg = wrapper_reg(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_combat = wrapper_combat(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_mnn_mean = wrapper_mnn(adata_full, samples_selected, save_path, suffix)
 
-# # merge all baseline scores
-# eval_all = pd.concat([eval_full_raw, eval_full_batch_reg, eval_full_batch_combat, eval_full_batch_mnn_mean])
-# eval_all.to_csv(save_path+'scores_baselines_'+suffix+'_upsample.csv')
-# print("simulated data with all cell populations shared analysed successfully")
+# merge all baseline scores
+eval_all = pd.concat([eval_full_raw, eval_full_batch_reg, eval_full_batch_combat, eval_full_batch_mnn_mean])
+eval_all.to_csv(save_path+'scores_baselines_'+suffix+'_upsample.csv')
+print("simulated data with all cell populations shared analysed successfully")
 
-# ######  some cell populations shared  ######
-# data_path = '../data/toy_data_gamma_w_index_subset.parquet'
-# save_path = '../eval_scores/'
-# df_full = load_sample_data(path, samples_selected=['sample1'], batch_names= ['batch1', 'batch2'])
-# samples_selected = sp.unique(df_full['metadata_sample'])
-# adata_full = convert_to_ann(df_full, sample_col_name = "metadata_sample", batch_col_name="metadata_batch",
-#                   celltype_col_name = 'metadata_celltype')
-# adata_full.obs_names_make_unique()
-# suffix = 'toysubset'
-# eval_full_raw = wrapper_raw(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_reg = wrapper_reg(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_combat = wrapper_combat(adata_full, samples_selected, save_path, suffix)
-# eval_full_batch_mnn_mean = wrapper_mnn(adata_full, samples_selected, save_path, suffix)
+######  some cell populations shared  ######
+data_path = '../data/toy_data_gamma_w_index_subset.parquet'
+save_path = '../eval_scores/'
+df_full = load_sample_data(path, samples_selected=['sample1'], batch_names= ['batch1', 'batch2'])
+samples_selected = sp.unique(df_full['metadata_sample'])
+adata_full = convert_to_ann(df_full, sample_col_name = "metadata_sample", batch_col_name="metadata_batch",
+                  celltype_col_name = 'metadata_celltype')
+adata_full.obs_names_make_unique()
+suffix = 'toysubset'
+eval_full_raw = wrapper_raw(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_reg = wrapper_reg(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_combat = wrapper_combat(adata_full, samples_selected, save_path, suffix)
+eval_full_batch_mnn_mean = wrapper_mnn(adata_full, samples_selected, save_path, suffix)
 
-# # merge all baseline scores
-# eval_all = pd.concat([eval_full_raw, eval_full_batch_reg, eval_full_batch_combat, eval_full_batch_mnn_mean])
-# eval_all.to_csv(save_path+'scores_baselines_'+suffix+'_upsample.csv')
-# print("simulated data with only some cell populations shared analysed successfully")
+# merge all baseline scores
+eval_all = pd.concat([eval_full_raw, eval_full_batch_reg, eval_full_batch_combat, eval_full_batch_mnn_mean])
+eval_all.to_csv(save_path+'scores_baselines_'+suffix+'_upsample.csv')
+print("simulated data with only some cell populations shared analysed successfully")
 
 ####################  Chevrier data  ###################
 data_path = '../data/chevrier_samples_5_65_75.parquet'
