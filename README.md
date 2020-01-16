@@ -36,6 +36,17 @@ To run both versions on the cluster
 residual_gan_chevrier_cluster.sh
 ```
 
+
+To run the baselines create an environment and s subfolder (the same level as data) to save the results
+```
+conda env create -f baselines/environment_baselines.yml
+mkdir eval_scores
+```
+To run baselines together with evaluation run
+```
+python baselines/baselines_batch_correction_eval.py
+```
+
 Evaluation: 
 Move the score files of the models from their respective "output_<modelname>" files and 
 into "eval_scores". Run the "notebooks/find_best_epochs.ipynb" notebook to get a table of the scores and 
