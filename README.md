@@ -37,7 +37,6 @@ residual_gan_chevrier_cluster.sh
 ```
 
 To run the BERMUDA_Gan
-```
 First install all the dependencies with the command 
 ```
 conda env create -f bermuda_gan/envs/environment_bermuda.yml
