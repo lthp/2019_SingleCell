@@ -37,7 +37,6 @@ residual_gan_chevrier_cluster.sh
 ```
 
 To run the BERMUDA_Gan
-```
 First install all the dependencies with the command 
 ```
 conda env create -f bermuda_gan/envs/environment_bermuda.yml
@@ -48,7 +47,6 @@ python bermuda_gan/bermuda_gan_chevrier.py
 ```
 Running the MetaNeighbor algorithm is not needed as the output of the R code (bermuda_gan/metaclustering/run_metaneighbor.R) is provided
 
-```
 
 
 To run the baselines create an environment and s subfolder (the same level as data) to save the results
