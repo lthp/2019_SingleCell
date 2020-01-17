@@ -43,6 +43,7 @@ conda env create -f bermuda_gan/envs/environment_bermuda.yml
 ```
 To run the BERMUDA_gan run 
 ```
+mkdir eval_scores
 python bermuda_gan/bermuda_gan_chevrier.py
 ```
 Running the MetaNeighbor algorithm is not needed as the output of the R code (bermuda_gan/metaclustering/run_metaneighbor.R) is provided
