@@ -5,7 +5,7 @@ as well as code, that can be found at the github: https://github.com/lthp/2019_D
 A link to the datasets used are provided in the hand-in.
 Place the dataset in a subfolder "/data", so everything will run smoothly.
 
-To run the models described in the paper:
+To run the models described in the paper (except BERMUDA_GAN):
 First install all dependencies needed via the command
 ```
 conda env create -f residual_gan/environment_residualgan.yml
@@ -34,6 +34,20 @@ python residual_gan/run_residuals_wo_res.py
 To run both versions on the cluster
 ```
 residual_gan_chevrier_cluster.sh
+```
+
+To run the BERMUDA_Gan
+```
+First install all the dependencies with the command 
+```
+conda env create -f bermuda_gan/envs/environment_bermuda.yml
+```
+To run the BERMUDA_gan run 
+```
+python bermuda_gan/bermuda_gan_chevrier.py
+```
+Running the MetaNeighbor algorithm is not needed as the output of the R code (bermuda_gan/metaclustering/run_metaneighbor.R) is provided
+
 ```
 
 
