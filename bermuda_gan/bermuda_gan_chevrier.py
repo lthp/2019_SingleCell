@@ -284,12 +284,12 @@ if __name__ == '__main__':
     similarity_thr = 0.90  # S_thr in the paper, choose between 0.85-0.9
     # "Reduce set controls the sub-sampling"
     pre_process_paras = {'take_log': False, 'standardization': False, 'scaling': False, 'oversample': True, 'split':0.80, 'separator':'\t', 'reduce_set' : 5}
-    base_dir = '/Users/laurieprelot/Documents/Projects/2019_Deep_learning/data/Chevrier-et-al'
-    path_data1_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
-    path_data2_clusters = os.path.join(base_dir, 'normalized', 'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
-    cluster_similarity_file = os.path.join(base_dir, 'metaneighbor', 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
-    equiv_table_path_cells = os.path.join(base_dir, 'equivalence_tables', 'equivalence_table_metadata_celltype.tsv')
-    output_path = os.path.join(base_dir, 'Outputs')
+    base_dir = '../data' 
+    path_data1_clusters = os.path.join(base_dir,'chevrier_data_pooled_full_panels.batch3.bermuda.tsv')
+    path_data2_clusters = os.path.join(base_dir,'chevrier_data_pooled_full_panels.batch1.bermuda.tsv')
+    cluster_similarity_file = os.path.join(base_dir, 'chevrier_data_pooled_full_panels.batch1_batch3.bermuda_metaneighbor_subsample.tsv')
+    equiv_table_path_cells = os.path.join(base_dir, 'equivalence_table_metadata_celltype.tsv')
+    output_path = '../eval_scores/'
 
     dataset_file_list = [path_data1_clusters, path_data2_clusters]
     cluster_pairs = read_cluster_similarity(cluster_similarity_file, similarity_thr , pre_process_paras['separator'])
