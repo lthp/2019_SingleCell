@@ -2,7 +2,7 @@
 Our project is to impelement GANs for batch effect correction in CyTOF data.
 The project consists of a 5-page report with a supplementary, 
 as well as code, that can be found at the github: https://github.com/lthp/2019_DL_Class.
-A link to the datasets used are provided in the hand-in.
+A link to the datasets used are provided in the hand-in (https://polybox.ethz.ch/index.php/s/CtpUm7S3vZBimNu)
 Place the dataset in a subfolder "/data", so everything will run smoothly.
 
 To run the models described in the paper (except BERMUDA_GAN):
